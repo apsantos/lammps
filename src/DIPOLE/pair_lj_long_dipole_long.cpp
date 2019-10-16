@@ -19,6 +19,7 @@
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include "math_const.h"
 #include "math_vector.h"
 #include "atom.h"
@@ -413,7 +414,7 @@ void PairLJLongDipoleLong::compute(int eflag, int vflag)
   double *special_coul = force->special_coul;
   double *special_lj = force->special_lj;
   int newton_pair = force->newton_pair;
-  double qqrd2e = force->qqrd2e;
+  // double qqrd2e = force->qqrd2e;
 
   int i, j;
   int order3 = ewald_order&(1<<3), order6 = ewald_order&(1<<6);
@@ -471,20 +472,20 @@ void PairLJLongDipoleLong::compute(int eflag, int vflag)
           mudi = mui[0]*d[0]+mui[1]*d[1]+mui[2]*d[2];
           mudj = muj[0]*d[0]+muj[1]*d[1]+muj[2]*d[2];
           muij = mui[0]*muj[0]+mui[1]*muj[1]+mui[2]*muj[2];
-          G0 = qi*(qj = q[j]);                          // eqn 2.10
-          G1 = qi*mudj-qj*mudi+muij;
-          G2 = -mudi*mudj;
+          G0 = qqrd2e*qi*(qj = q[j]);                          // eqn 2.10
+          G1 = qmurd2e*(qi*mudj-qj*mudi)+mumurd2e*muij;
+          G2 = -mumurd2e*mudi*mudj;
           force_coul = G0*B1+G1*B2+G2*B3;
 
           mudi *= B2; mudj *= B2;                       // torque contribs
-          ti[0] = mudj*d[0]+(qj*d[0]-muj[0])*B1;
-          ti[1] = mudj*d[1]+(qj*d[1]-muj[1])*B1;
-          ti[2] = mudj*d[2]+(qj*d[2]-muj[2])*B1;
+          ti[0] = mumurd2e*mudj*d[0]+(qj*d[0]-mumurd2e*muj[0])*B1;
+          ti[1] = mumurd2e*mudj*d[1]+(qj*d[1]-mumurd2e*muj[1])*B1;
+          ti[2] = mumurd2e*mudj*d[2]+(qj*d[2]-mumurd2e*muj[2])*B1;
 
           if (newton_pair || j < nlocal) {
-            tj[0] = mudi*d[0]-(qi*d[0]+mui[0])*B1;
-            tj[1] = mudi*d[1]-(qi*d[1]+mui[1])*B1;
-            tj[2] = mudi*d[2]-(qi*d[2]+mui[2])*B1;
+            tj[0] = mumurd2e*mudi*d[0]-(qi*d[0]+mumurd2e*mui[0])*B1;
+            tj[1] = mumurd2e*mudi*d[1]-(qi*d[1]+mumurd2e*mui[1])*B1;
+            tj[2] = mumurd2e*mudi*d[2]-(qi*d[2]+mumurd2e*mui[2])*B1;
           }
 
           if (eflag) ecoul = G0*B0+G1*B1+G2*B2;
@@ -496,21 +497,21 @@ void PairLJLongDipoleLong::compute(int eflag, int vflag)
             B1 -= f*r2inv;
           }
           B0 = mudj+qj*B1; B3 = -qi*B1+mudi;            // position independent
-      if (ni > 0) B0 -= f*3.0*mudj*r2inv*r2inv/B2;
-      if (ni > 0) B3 -= f*3.0*mudi*r2inv*r2inv/B2;
+          if (ni > 0) B0 -= f*3.0*mudj*r2inv*r2inv/B2;
+          if (ni > 0) B3 -= f*3.0*mudi*r2inv*r2inv/B2;
           force_d[0] = B0*mui[0]+B3*muj[0];             // force contribs
           force_d[1] = B0*mui[1]+B3*muj[1];
           force_d[2] = B0*mui[2]+B3*muj[2];
-      if (ni > 0) {
-            ti[0] -= f*(3.0*mudj*r2inv*r2inv*d[0]/B2+(qj*r2inv*d[0]-muj[0]*r2inv));
-            ti[1] -= f*(3.0*mudj*r2inv*r2inv*d[1]/B2+(qj*r2inv*d[1]-muj[1]*r2inv));
-            ti[2] -= f*(3.0*mudj*r2inv*r2inv*d[2]/B2+(qj*r2inv*d[2]-muj[2]*r2inv));
+          if (ni > 0) {
+            ti[0] -= f*(mumurd2e*3.0*mudj*r2inv*r2inv*d[0]/B2+(qmurd2e*qj*r2inv*d[0]-mumurd2e*muj[0]*r2inv));
+            ti[1] -= f*(mumurd2e*3.0*mudj*r2inv*r2inv*d[1]/B2+(qmurd2e*qj*r2inv*d[1]-mumurd2e*muj[1]*r2inv));
+            ti[2] -= f*(mumurd2e*3.0*mudj*r2inv*r2inv*d[2]/B2+(qmurd2e*qj*r2inv*d[2]-mumurd2e*muj[2]*r2inv));
             if (newton_pair || j < nlocal) {
-              tj[0] -= f*(3.0*mudi*r2inv*r2inv*d[0]/B2-(qi*r2inv*d[0]+mui[0]*r2inv));
-              tj[1] -= f*(3.0*mudi*r2inv*r2inv*d[1]/B2-(qi*r2inv*d[1]+mui[1]*r2inv));
-              tj[2] -= f*(3.0*mudi*r2inv*r2inv*d[2]/B2-(qi*r2inv*d[2]+mui[2]*r2inv));
+              tj[0] -= f*(mumurd2e*3.0*mudi*r2inv*r2inv*d[0]/B2-(qmurd2e*qi*r2inv*d[0]+mumurd2e*mui[0]*r2inv));
+              tj[1] -= f*(mumurd2e*3.0*mudi*r2inv*r2inv*d[1]/B2-(qmurd2e*qi*r2inv*d[1]+mumurd2e*mui[1]*r2inv));
+              tj[2] -= f*(mumurd2e*3.0*mudi*r2inv*r2inv*d[2]/B2-(qmurd2e*qi*r2inv*d[2]+mumurd2e*mui[2]*r2inv));
             }
-      }
+          }
         }                                               // table real space
       } else {
         force_coul = ecoul = 0.0;
@@ -616,9 +617,9 @@ double PairLJLongDipoleLong::single(int i, int j, int itype, int jtype,
       mudi = mui[0]*d[0]+mui[1]*d[1]+mui[2]*d[2];
       mudj = muj[0]*d[0]+muj[1]*d[1]+muj[2]*d[2];
       muij = mui[0]*muj[0]+mui[1]*muj[1]+mui[2]*muj[2];
-      G0 = qi*(qj = q[j]);                              // eqn 2.10
-      G1 = qi*mudj-qj*mudi+muij;
-      G2 = -mudi*mudj;
+      G0 = qqrd2e*qi*(qj = q[j]);                          // eqn 2.10
+      G1 = qmurd2e*(qi*mudj-qj*mudi)+mumurd2e*muij;
+      G2 = -mumurd2e*mudi*mudj;
       force_coul = G0*B1+G1*B2+G2*B3;
 
       eng += G0*B0+G1*B1+G2*B2;

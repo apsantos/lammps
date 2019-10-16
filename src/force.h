@@ -42,6 +42,14 @@ class Force : protected Pointers {
   double femtosecond;                // 1 femtosecond in native units
   double qelectron;                  // 1 electron charge abs() in native units
 
+  double qmur2e;                     // convert electric q*dipole/r to energy
+  double bmubmur2e;                  // convert magnetic dipole*dipole/r to energy
+  double mue2f;                      // convert electric dipole*Efield to force
+  double bmub2f;                     // convert magnetic dipole*Bfield to force
+  double mumur2e;                    // convert electric dipole*dipole/r to energy
+  double qmurd2e;                    // qmur2e / dielectric
+  double mumurd2e;                   // qmumur2e / dielectric
+
   double qqr2e_lammps_real;          // different versions of this constant
   double qqr2e_charmm_real;          // used by new CHARMM pair styles
 

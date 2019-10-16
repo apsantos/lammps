@@ -23,9 +23,11 @@
 #include "fix.h"
 #include "compute.h"
 #include "output.h"
+#include "math_const.h"
 #include "error.h"
 
 using namespace LAMMPS_NS;
+using namespace MathConst;
 
 /* ---------------------------------------------------------------------- */
 
@@ -129,7 +131,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0;
     force->nktv2p = 1.0;
     force->qqr2e = 1.0;
+    force->qmur2e = 1.0;
+    force->mumur2e = 1.0;
+    force->bmubmur2e = 1.0;
     force->qe2f = 1.0;
+    force->mue2f = 1.0;
+    force->bmub2f = 1.0;
     force->vxmu2f = 1.0;
     force->xxt2kmu = 1.0;
     force->e_mass = 0.0;    // not yet set
@@ -150,7 +157,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0 / 0.602214129;
     force->nktv2p = 68568.415;
     force->qqr2e = 332.06371;     // see also force->qqr2d_lammps_real
+    force->qmur2e = force->qqr2e;
+    force->mumur2e = force->qqr2e;
+    force->bmubmur2e = 1439.5315;
     force->qe2f = 23.060549;
+    force->mue2f = force->qe2f;
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 1.4393264316e4;
     force->xxt2kmu = 0.1;
     force->e_mass = 1.0/1836.1527556560675;
@@ -171,7 +183,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0 / 0.602214129;
     force->nktv2p = 1.6021765e6;
     force->qqr2e = 14.399645;
+    force->qmur2e = force->qqr2e;
+    force->mumur2e = force->qqr2e;
+    force->bmubmur2e = 62.4;
     force->qe2f = 1.0;
+    force->mue2f = force->qe2f;
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 0.6241509647;
     force->xxt2kmu = 1.0e-4;
     force->e_mass = 0.0;    // not yet set
@@ -192,7 +209,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0;
     force->nktv2p = 1.0;
     force->qqr2e = 8.9876e9;
+    force->qmur2e = force->qqr2e;
+    force->mumur2e = force->qqr2e;
+    force->bmubmur2e = 1.0e-7;
     force->qe2f = 1.0;
+    force->mue2f = force->qe2f;
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 1.0;
     force->xxt2kmu = 1.0;
     force->e_mass = 0.0;    // not yet set
@@ -213,7 +235,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0;
     force->nktv2p = 1.0;
     force->qqr2e = 1.0;
+    force->qmur2e = force->qqr2e;
+    force->mumur2e = force->qqr2e;
+    force->bmubmur2e = 1.0;
     force->qe2f = 1.0;
+    force->mue2f = force->qe2f;
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 1.0;
     force->xxt2kmu = 1.0;
     force->e_mass = 0.0;    // not yet set
@@ -234,7 +261,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0;
     force->nktv2p = 2.94210108e13;
     force->qqr2e = 1.0;
+    force->qmur2e = 1.0;           // NOTE: needs to be different than qqr2e
+    force->mumur2e = 1.0;   // NOTE: needs to be different than qqr2e and qmur2e
+    force->bmubmur2e = 1.2139;
     force->qe2f = 1.94469051e-10;
+    force->mue2f = 1.0;            // NOTE: needs to be different than qe2f
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 3.39893149e1;
     force->xxt2kmu = 3.13796367e-2;
     force->e_mass = 0.0;    // not yet set
@@ -255,7 +287,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0;
     force->nktv2p = 1.0;
     force->qqr2e = 8.987556e6;
+    force->qmur2e = force->qqr2e;
+    force->mumur2e = force->qqr2e;
+    force->bmubmur2e = 1.0e-10;
     force->qe2f = 1.0;
+    force->mue2f = force->qe2f;
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 1.0;
     force->xxt2kmu = 1.0;
     force->e_mass = 0.0;    // not yet set
@@ -276,7 +313,12 @@ void Update::set_units(const char *style)
     force->mv2d = 1.0;
     force->nktv2p = 1.0;
     force->qqr2e = 230.7078669;
+    force->qmur2e = force->qqr2e;
+    force->mumur2e = force->qqr2e;
+    force->bmubmur2e = 1.0e-13;
     force->qe2f = 1.0;
+    force->mue2f = force->qe2f;
+    force->bmub2f = 4.0*MY_PI * force->bmubmur2e;
     force->vxmu2f = 1.0;
     force->xxt2kmu = 1.0;
     force->e_mass = 0.0;    // not yet set

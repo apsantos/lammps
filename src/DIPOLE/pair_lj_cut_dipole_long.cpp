@@ -14,6 +14,7 @@
 #include "pair_lj_cut_dipole_long.h"
 #include <mpi.h>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include "atom.h"
 #include "comm.h"
@@ -101,7 +102,7 @@ void PairLJCutDipoleLong::compute(int eflag, int vflag)
   double *special_coul = force->special_coul;
   double *special_lj = force->special_lj;
   int newton_pair = force->newton_pair;
-  double qqrd2e = force->qqrd2e;
+  // double qqrd2e = force->qqrd2e;
 
   inum = list->inum;
   ilist = list->ilist;
@@ -151,9 +152,9 @@ void PairLJCutDipoleLong::compute(int eflag, int vflag)
           pidotr = mu[i][0]*delx + mu[i][1]*dely + mu[i][2]*delz;
           pjdotr = mu[j][0]*delx + mu[j][1]*dely + mu[j][2]*delz;
 
-          g0 = qtmp*q[j];
-          g1 = qtmp*pjdotr - q[j]*pidotr + pdotp;
-          g2 = -pidotr*pjdotr;
+          g0 = qqrd2e*qtmp*q[j];
+          g1 = qmurd2e*(qtmp*pjdotr - q[j]*pidotr) + mumurd2e*pdotp;
+          g2 = -mumurd2e*pidotr*pjdotr;
 
           if (factor_coul > 0.0) {
             b0 = erfc * rinv;
@@ -163,21 +164,21 @@ void PairLJCutDipoleLong::compute(int eflag, int vflag)
 
             g0b1_g1b2_g2b3 = g0*b1 + g1*b2 + g2*b3;
             fdx = delx * g0b1_g1b2_g2b3 -
-              b1 * (qtmp*mu[j][0] - q[j]*mu[i][0]) +
-              b2 * (pjdotr*mu[i][0] + pidotr*mu[j][0]);
+              b1 * qmurd2e * (qtmp*mu[j][0] - q[j]*mu[i][0]) +
+              b2 * mumurd2e * (pjdotr*mu[i][0] + pidotr*mu[j][0]);
             fdy = dely * g0b1_g1b2_g2b3 -
-              b1 * (qtmp*mu[j][1] - q[j]*mu[i][1]) +
-              b2 * (pjdotr*mu[i][1] + pidotr*mu[j][1]);
+              b1 * qmurd2e * (qtmp*mu[j][1] - q[j]*mu[i][1]) +
+              b2 * mumurd2e * (pjdotr*mu[i][1] + pidotr*mu[j][1]);
             fdz = delz * g0b1_g1b2_g2b3 -
-              b1 * (qtmp*mu[j][2] - q[j]*mu[i][2]) +
-              b2 * (pjdotr*mu[i][2] + pidotr*mu[j][2]);
+              b1 * qmurd2e * (qtmp*mu[j][2] - q[j]*mu[i][2]) +
+              b2 * mumurd2e * (pjdotr*mu[i][2] + pidotr*mu[j][2]);
 
-            zdix = delx * (q[j]*b1 + b2*pjdotr) - b1*mu[j][0];
-            zdiy = dely * (q[j]*b1 + b2*pjdotr) - b1*mu[j][1];
-            zdiz = delz * (q[j]*b1 + b2*pjdotr) - b1*mu[j][2];
-            zdjx = delx * (-qtmp*b1 + b2*pidotr) - b1*mu[i][0];
-            zdjy = dely * (-qtmp*b1 + b2*pidotr) - b1*mu[i][1];
-            zdjz = delz * (-qtmp*b1 + b2*pidotr) - b1*mu[i][2];
+            zdix = delx * (qmurd2e*q[j]*b1 + mumurd2e*b2*pjdotr) - mumurd2e*b1*mu[j][0];
+            zdiy = dely * (qmurd2e*q[j]*b1 + mumurd2e*b2*pjdotr) - mumurd2e*b1*mu[j][1];
+            zdiz = delz * (qmurd2e*q[j]*b1 + mumurd2e*b2*pjdotr) - mumurd2e*b1*mu[j][2];
+            zdjx = delx * (-qmurd2e*qtmp*b1 + mumurd2e*b2*pidotr) - mumurd2e*b1*mu[i][0];
+            zdjy = dely * (-qmurd2e*qtmp*b1 + mumurd2e*b2*pidotr) - mumurd2e*b1*mu[i][1];
+            zdjz = delz * (-qmurd2e*qtmp*b1 + mumurd2e*b2*pidotr) - mumurd2e*b1*mu[i][2];
 
             if (factor_coul < 1.0) {
               fdx *= factor_coul;
@@ -204,21 +205,21 @@ void PairLJCutDipoleLong::compute(int eflag, int vflag)
 
             g0d1_g1d2_g2d3 = g0*d1 + g1*d2 + g2*d3;
             fax = delx * g0d1_g1d2_g2d3 -
-              d1 * (qtmp*mu[j][0] - q[j]*mu[i][0]) +
-              d2 * (pjdotr*mu[i][0] + pidotr*mu[j][0]);
+              d1 * qmurd2e * (qtmp*mu[j][0] - q[j]*mu[i][0]) +
+              d2 * mumurd2e * (pjdotr*mu[i][0] + pidotr*mu[j][0]);
             fay = dely * g0d1_g1d2_g2d3 -
-              d1 * (qtmp*mu[j][1] - q[j]*mu[i][1]) +
-              d2 * (pjdotr*mu[i][1] + pidotr*mu[j][1]);
+              d1 * qmurd2e * (qtmp*mu[j][1] - q[j]*mu[i][1]) +
+              d2 * mumurd2e * (pjdotr*mu[i][1] + pidotr*mu[j][1]);
             faz = delz * g0d1_g1d2_g2d3 -
-              d1 * (qtmp*mu[j][2] - q[j]*mu[i][2]) +
-              d2 * (pjdotr*mu[i][2] + pidotr*mu[j][2]);
+              d1 * qmurd2e * (qtmp*mu[j][2] - q[j]*mu[i][2]) +
+              d2 * mumurd2e * (pjdotr*mu[i][2] + pidotr*mu[j][2]);
 
-            zaix = delx * (q[j]*d1 + d2*pjdotr) - d1*mu[j][0];
-            zaiy = dely * (q[j]*d1 + d2*pjdotr) - d1*mu[j][1];
-            zaiz = delz * (q[j]*d1 + d2*pjdotr) - d1*mu[j][2];
-            zajx = delx * (-qtmp*d1 + d2*pidotr) - d1*mu[i][0];
-            zajy = dely * (-qtmp*d1 + d2*pidotr) - d1*mu[i][1];
-            zajz = delz * (-qtmp*d1 + d2*pidotr) - d1*mu[i][2];
+            zaix = delx * (qmurd2e*q[j]*d1 + mumurd2e*d2*pjdotr) - mumurd2e*d1*mu[j][0];
+            zaiy = dely * (qmurd2e*q[j]*d1 + mumurd2e*d2*pjdotr) - mumurd2e*d1*mu[j][1];
+            zaiz = delz * (qmurd2e*q[j]*d1 + mumurd2e*d2*pjdotr) - mumurd2e*d1*mu[j][2];
+            zajx = delx * (-qmurd2e*qtmp*d1 + mumurd2e*d2*pidotr) - mumurd2e*d1*mu[i][0];
+            zajy = dely * (-qmurd2e*qtmp*d1 + mumurd2e*d2*pidotr) - mumurd2e*d1*mu[i][1];
+            zajz = delz * (-qmurd2e*qtmp*d1 + mumurd2e*d2*pidotr) - mumurd2e*d1*mu[i][2];
 
             if (factor_coul > 0.0) {
               facm1 = 1.0 - factor_coul;
@@ -265,31 +266,31 @@ void PairLJCutDipoleLong::compute(int eflag, int vflag)
 
         // total force
 
-        fx = qqrd2e*forcecoulx + delx*fforce;
-        fy = qqrd2e*forcecouly + dely*fforce;
-        fz = qqrd2e*forcecoulz + delz*fforce;
+        fx = forcecoulx + delx*fforce;
+        fy = forcecouly + dely*fforce;
+        fz = forcecoulz + delz*fforce;
 
         // force & torque accumulation
 
         f[i][0] += fx;
         f[i][1] += fy;
         f[i][2] += fz;
-        torque[i][0] += qqrd2e*tixcoul;
-        torque[i][1] += qqrd2e*tiycoul;
-        torque[i][2] += qqrd2e*tizcoul;
+        torque[i][0] += tixcoul;
+        torque[i][1] += tiycoul;
+        torque[i][2] += tizcoul;
 
         if (newton_pair || j < nlocal) {
           f[j][0] -= fx;
           f[j][1] -= fy;
           f[j][2] -= fz;
-          torque[j][0] += qqrd2e*tjxcoul;
-          torque[j][1] += qqrd2e*tjycoul;
-          torque[j][2] += qqrd2e*tjzcoul;
+          torque[j][0] += tjxcoul;
+          torque[j][1] += tjycoul;
+          torque[j][2] += tjzcoul;
         }
 
         if (eflag) {
           if (rsq < cut_coulsq && factor_coul > 0.0) {
-            ecoul = qqrd2e*(b0*g0 + b1*g1 + b2*g2);
+            ecoul = (b0*g0 + b1*g1 + b2*g2);
             if (factor_coul < 1.0) {
               ecoul *= factor_coul;
               ecoul += (1-factor_coul) * qqrd2e * (d0*g0 + d1*g1 + d2*g2);
@@ -454,6 +455,14 @@ void PairLJCutDipoleLong::init_style()
   cut_coulsq = cut_coul * cut_coul;
 
   neighbor->request(this,instance_me);
+
+  if (atom->dipole_magnetic)
+    error->all(FLERR,"Using electric dipole pair style with magnetic dipoles");
+
+  qqrd2e = force->qqrd2e;
+  qmurd2e = force->qmurd2e;
+  mumurd2e = force->mumurd2e;
+
 }
 
 /* ----------------------------------------------------------------------
