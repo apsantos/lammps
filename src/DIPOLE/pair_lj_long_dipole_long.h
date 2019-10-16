@@ -43,7 +43,6 @@ class PairLJLongDipoleLong : public Pair {
   void *extract(const char *, int &);
 
  protected:
-  double qqrd2e,qmurd2e,mumurd2e;
   double cut_lj_global;
   double **cut_lj, **cut_lj_read, **cut_ljsq;
   double cut_coulsq;

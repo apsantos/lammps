@@ -175,10 +175,6 @@ class Atom : protected Pointers {
 
   double pdscale;
 
-  // treat point-dipoles as electric (0) versus magnetic (1)
-
-  int dipole_magnetic;
-
   // molecule templates
   // each template can be a set of consecutive molecules
   // each with same ID (stored in molecules)

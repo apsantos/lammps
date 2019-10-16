@@ -30,8 +30,7 @@ class PairLJCutDipoleLong : public Pair {
   double **sigma;
 
   PairLJCutDipoleLong(class LAMMPS *);
-  virtual ~PairLJCutDipoleLong();
-  /*~PairLJCutDipoleLong();*/
+  ~PairLJCutDipoleLong();
   void compute(int, int);
   void settings(int, char **);
   void coeff(int, char **);
@@ -43,7 +42,6 @@ class PairLJCutDipoleLong : public Pair {
   void read_restart_settings(FILE *);
 
  protected:
-  double qqrd2e,qmurd2e,mumurd2e;
   double cut_lj_global;
   double **cut_lj,**cut_ljsq;
   double cut_coulsq;

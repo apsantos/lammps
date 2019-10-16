@@ -180,8 +180,6 @@ Force::~Force()
 void Force::init()
 {
   qqrd2e = qqr2e/dielectric;
-  qmurd2e = qmur2e/dielectric;
-  mumurd2e = mumur2e/dielectric;
 
   // check if pair style must be specified after restart
   if (pair_restart) {

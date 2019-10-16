@@ -56,20 +56,15 @@ FixEfield::FixEfield(LAMMPS *lmp, int narg, char **arg) :
   ilevel_respa = 0;
   virial_flag = 1;
 
-  // initialize prefactor constants for electric dipoles
-
-  if (strcmp(style,"efield") == 0) init_prefactors();
-
-  xstr = ystr = zstr = NULL;
-  ex_constant = ey_constant = ez_constant = 0.0;
   qe2f = force->qe2f;
+  xstr = ystr = zstr = NULL;
 
   if (strstr(arg[3],"v_") == arg[3]) {
     int n = strlen(&arg[3][2]) + 1;
     xstr = new char[n];
     strcpy(xstr,&arg[3][2]);
   } else {
-    ex_constant = force->numeric(FLERR,arg[3]);
+    ex = qe2f * force->numeric(FLERR,arg[3]);
     xstyle = CONSTANT;
   }
 
@@ -78,7 +73,7 @@ FixEfield::FixEfield(LAMMPS *lmp, int narg, char **arg) :
     ystr = new char[n];
     strcpy(ystr,&arg[4][2]);
   } else {
-    ey_constant = force->numeric(FLERR,arg[4]);
+    ey = qe2f * force->numeric(FLERR,arg[4]);
     ystyle = CONSTANT;
   }
 
@@ -87,7 +82,7 @@ FixEfield::FixEfield(LAMMPS *lmp, int narg, char **arg) :
     zstr = new char[n];
     strcpy(zstr,&arg[5][2]);
   } else {
-    ez_constant = force->numeric(FLERR,arg[5]);
+    ez = qe2f * force->numeric(FLERR,arg[5]);
     zstyle = CONSTANT;
   }
 
@@ -152,17 +147,6 @@ int FixEfield::setmask()
 
 /* ---------------------------------------------------------------------- */
 
-void FixEfield::init_prefactors()
-{
-  if (atom->dipole_magnetic)
-    error->all(FLERR,"Using fix efield with magnetic dipoles");
-
-  qe2f = force->qe2f;
-  mue2f = force->mue2f;
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixEfield::init()
 {
   qflag = muflag = 0;
@@ -170,13 +154,6 @@ void FixEfield::init()
   if (atom->mu_flag && atom->torque_flag) muflag = 1;
   if (!qflag && !muflag)
     error->all(FLERR,"Fix efield requires atom attribute q or mu");
-
-  ex_charge = qe2f * ex_constant;
-  ex_dipole = mue2f * ex_constant;
-  ey_charge = qe2f * ey_constant;
-  ey_dipole = mue2f * ey_constant;
-  ez_charge = qe2f * ez_constant;
-  ez_dipole = mue2f * ez_constant;
 
   // check variables
 
@@ -323,9 +300,9 @@ void FixEfield::post_force(int vflag)
       for (int i = 0; i < nlocal; i++)
         if (mask[i] & groupbit) {
           if (region && !region->match(x[i][0],x[i][1],x[i][2])) continue;
-          fx = q[i]*ex_charge;
-          fy = q[i]*ey_charge;
-          fz = q[i]*ez_charge;
+          fx = q[i]*ex;
+          fy = q[i]*ey;
+          fz = q[i]*ez;
           f[i][0] += fx;
           f[i][1] += fy;
           f[i][2] += fz;
@@ -357,14 +334,13 @@ void FixEfield::post_force(int vflag)
       for (int i = 0; i < nlocal; i++)
         if (mask[i] & groupbit) {
           if (region && !region->match(x[i][0],x[i][1],x[i][2])) continue;
-          tx = ez_dipole*mu[i][1] - ey_dipole*mu[i][2];
-          ty = ex_dipole*mu[i][2] - ez_dipole*mu[i][0];
-          tz = ey_dipole*mu[i][0] - ex_dipole*mu[i][1];
+          tx = ez*mu[i][1] - ey*mu[i][2];
+          ty = ex*mu[i][2] - ez*mu[i][0];
+          tz = ey*mu[i][0] - ex*mu[i][1];
           t[i][0] += tx;
           t[i][1] += ty;
           t[i][2] += tz;
-          fsum[0] -= mu[i][0]*ex_dipole + mu[i][1]*ey_dipole + 
-            mu[i][2]*ez_dipole;
+          fsum[0] -= mu[i][0]*ex + mu[i][1]*ey + mu[i][2]*ez;
         }
     }
 
@@ -375,29 +351,15 @@ void FixEfield::post_force(int vflag)
 
     modify->clearstep_compute();
 
-    double var;
-
-    if (xstyle == EQUAL) {
-      var = input->variable->compute_equal(xvar);
-      ex_charge = qe2f * var;
-      ex_dipole = mue2f * var;
-    } else if (xstyle == ATOM)
+    if (xstyle == EQUAL) ex = qe2f * input->variable->compute_equal(xvar);
+    else if (xstyle == ATOM)
       input->variable->compute_atom(xvar,igroup,&efield[0][0],4,0);
-
-    if (ystyle == EQUAL) {
-      var = input->variable->compute_equal(yvar);
-      ey_charge = qe2f * var;
-      ey_dipole = mue2f * var;
-    } else if (ystyle == ATOM)
+    if (ystyle == EQUAL) ey = qe2f * input->variable->compute_equal(yvar);
+    else if (ystyle == ATOM)
       input->variable->compute_atom(yvar,igroup,&efield[0][1],4,0);
-
-    if (zstyle == EQUAL) {
-      var = input->variable->compute_equal(zvar);
-      ez_charge = qe2f * var;
-      ez_dipole = mue2f * var;
-    } else if (zstyle == ATOM)
+    if (zstyle == EQUAL) ez = qe2f * input->variable->compute_equal(zvar);
+    else if (zstyle == ATOM)
       input->variable->compute_atom(zvar,igroup,&efield[0][2],4,0);
-
     if (estyle == ATOM)
       input->variable->compute_atom(evar,igroup,&efield[0][3],4,0);
 
@@ -411,15 +373,15 @@ void FixEfield::post_force(int vflag)
         if (mask[i] & groupbit) {
           if (region && !region->match(x[i][0],x[i][1],x[i][2])) continue;
           if (xstyle == ATOM) fx = qe2f * q[i]*efield[i][0];
-          else fx = q[i]*ex_charge;
+          else fx = q[i]*ex;
           f[i][0] += fx;
           fsum[1] += fx;
           if (ystyle == ATOM) fy = qe2f * q[i]*efield[i][1];
-          else fy = q[i]*ey_charge;
+          else fy = q[i]*ey;
           f[i][1] += fy;
           fsum[2] += fy;
           if (zstyle == ATOM) fz = qe2f * q[i]*efield[i][2];
-          else fz = q[i]*ez_charge;
+          else fz = q[i]*ez;
           f[i][2] += fz;
           fsum[3] += fz;
           if (estyle == ATOM) fsum[0] += efield[0][3];
@@ -436,9 +398,9 @@ void FixEfield::post_force(int vflag)
       for (int i = 0; i < nlocal; i++)
         if (mask[i] & groupbit) {
           if (region && !region->match(x[i][0],x[i][1],x[i][2])) continue;
-          tx = ez_dipole*mu[i][1] - ey_dipole*mu[i][2];
-          ty = ex_dipole*mu[i][2] - ez_dipole*mu[i][0];
-          tz = ey_dipole*mu[i][0] - ex_dipole*mu[i][1];
+          tx = ez*mu[i][1] - ey*mu[i][2];
+          ty = ex*mu[i][2] - ez*mu[i][0];
+          tz = ey*mu[i][0] - ex*mu[i][1];
           t[i][0] += tx;
           t[i][1] += ty;
           t[i][2] += tz;

@@ -81,6 +81,7 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
   double *special_coul = force->special_coul;
   double *special_lj = force->special_lj;
   int newton_pair = force->newton_pair;
+  double qqrd2e = force->qqrd2e;
 
   inum = list->inum;
   ilist = list->ilist;
@@ -126,7 +127,7 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
 
           if (qtmp != 0.0 && q[j] != 0.0) {
             r3inv = r2inv*rinv;
-            pre1 = qqrd2e*qtmp*q[j]*r3inv;
+            pre1 = qtmp*q[j]*r3inv;
 
             forcecoulx += pre1*delx;
             forcecouly += pre1*dely;
@@ -142,10 +143,10 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
             pidotr = mu[i][0]*delx + mu[i][1]*dely + mu[i][2]*delz;
             pjdotr = mu[j][0]*delx + mu[j][1]*dely + mu[j][2]*delz;
 
-            pre1 = mumurd2e * (3.0*r5inv*pdotp - 15.0*r7inv*pidotr*pjdotr);
-            pre2 = mumurd2e*3.0*r5inv*pjdotr;
-            pre3 = mumurd2e*3.0*r5inv*pidotr;
-            pre4 = -mumurd2e*r3inv;
+            pre1 = 3.0*r5inv*pdotp - 15.0*r7inv*pidotr*pjdotr;
+            pre2 = 3.0*r5inv*pjdotr;
+            pre3 = 3.0*r5inv*pidotr;
+            pre4 = -1.0*r3inv;
 
             forcecoulx += pre1*delx + pre2*mu[i][0] + pre3*mu[j][0];
             forcecouly += pre1*dely + pre2*mu[i][1] + pre3*mu[j][1];
@@ -167,8 +168,8 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
             r3inv = r2inv*rinv;
             r5inv = r3inv*r2inv;
             pidotr = mu[i][0]*delx + mu[i][1]*dely + mu[i][2]*delz;
-            pre1 = qmurd2e * (3.0*q[j]*r5inv * pidotr);
-            pre2 = qmurd2e*q[j]*r3inv;
+            pre1 = 3.0*q[j]*r5inv * pidotr;
+            pre2 = q[j]*r3inv;
 
             forcecoulx += pre2*mu[i][0] - pre1*delx;
             forcecouly += pre2*mu[i][1] - pre1*dely;
@@ -182,8 +183,8 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
             r3inv = r2inv*rinv;
             r5inv = r3inv*r2inv;
             pjdotr = mu[j][0]*delx + mu[j][1]*dely + mu[j][2]*delz;
-            pre1 = qmurd2e * (3.0*qtmp*r5inv * pjdotr);
-            pre2 = qmurd2e*qtmp*r3inv;
+            pre1 = 3.0*qtmp*r5inv * pjdotr;
+            pre2 = qtmp*r3inv;
 
             forcecoulx += pre1*delx - pre2*mu[j][0];
             forcecouly += pre1*dely - pre2*mu[j][1];
@@ -204,7 +205,7 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
 
         // total force
 
-        fq = factor_coul;
+        fq = factor_coul*qqrd2e;
         fx = fq*forcecoulx + delx*forcelj;
         fy = fq*forcecouly + dely*forcelj;
         fz = fq*forcecoulz + delz*forcelj;
@@ -229,14 +230,14 @@ void PairLJCutDipoleCut::compute(int eflag, int vflag)
 
         if (eflag) {
           if (rsq < cut_coulsq[itype][jtype]) {
-            ecoul = qqrd2e*qtmp*q[j]*rinv;
+            ecoul = qtmp*q[j]*rinv;
             if (mu[i][3] > 0.0 && mu[j][3] > 0.0)
-              ecoul += mumurd2e * (r3inv*pdotp - 3.0*r5inv*pidotr*pjdotr);
+              ecoul += r3inv*pdotp - 3.0*r5inv*pidotr*pjdotr;
             if (mu[i][3] > 0.0 && q[j] != 0.0)
-              ecoul += -qmurd2e*q[j]*r3inv*pidotr;
+              ecoul += -q[j]*r3inv*pidotr;
             if (mu[j][3] > 0.0 && qtmp != 0.0)
-              ecoul += qmurd2e*qtmp*r3inv*pjdotr;
-            ecoul *= fq;
+              ecoul += qtmp*r3inv*pjdotr;
+            ecoul *= factor_coul*qqrd2e;
           } else ecoul = 0.0;
 
           if (rsq < cut_ljsq[itype][jtype]) {
@@ -358,13 +359,6 @@ void PairLJCutDipoleCut::init_style()
 {
   if (!atom->q_flag || !atom->mu_flag || !atom->torque_flag)
     error->all(FLERR,"Pair dipole/cut requires atom attributes q, mu, torque");
-
-  if (atom->dipole_magnetic)
-    error->all(FLERR,"Using electric dipole pair style with magnetic dipoles");
-
-  qqrd2e = force->qqrd2e;
-  qmurd2e = force->qmurd2e;
-  mumurd2e = force->mumurd2e;
 
   neighbor->request(this,instance_me);
 }

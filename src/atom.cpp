@@ -117,10 +117,6 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   eff_plastic_strain_rate = NULL;
   damage = NULL;
 
-  // electric versus magnetic dipoles
-
-  dipole_magnetic = 0;
-
   // molecular info
 
   bond_per_atom =  extra_bond_per_atom = 0;
@@ -634,14 +630,6 @@ void Atom::modify_params(int narg, char **arg)
         error->all(FLERR,"Atom_modify sort and first options "
                    "cannot be used together");
       iarg += 3;
-
-    } else if (strcmp(arg[iarg],"dipole") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal atom_modify command");
-      if (strcmp(arg[iarg+1],"electric") == 0) dipole_magnetic = 0;
-      else if (strcmp(arg[iarg+1],"magnetic") == 0) dipole_magnetic = 1;
-      else error->all(FLERR,"Illegal atom_modify command");
-      iarg += 2;
-
     } else error->all(FLERR,"Illegal atom_modify command");
   }
 }

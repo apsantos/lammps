@@ -27,9 +27,9 @@ namespace LAMMPS_NS {
 class FixEfield : public Fix {
  public:
   FixEfield(class LAMMPS *, int, char **);
-  virtual ~FixEfield();
+  ~FixEfield();
   int setmask();
-  virtual void init();
+  void init();
   void setup(int);
   void min_setup(int);
   void post_force(int);
@@ -39,16 +39,14 @@ class FixEfield : public Fix {
   double compute_scalar();
   double compute_vector(int);
 
- protected:
-  double ex_constant,ey_constant,ez_constant;
-  double ex_charge,ey_charge,ez_charge;
-  double ex_dipole,ey_dipole,ez_dipole;
+ private:
+  double ex,ey,ez;
   int varflag,iregion;
   char *xstr,*ystr,*zstr,*estr;
   char *idregion;
   int xvar,yvar,zvar,evar,xstyle,ystyle,zstyle,estyle;
   int ilevel_respa;
-  double qe2f,mue2f;
+  double qe2f;
   int qflag,muflag;
 
   int maxatom;
@@ -56,8 +54,6 @@ class FixEfield : public Fix {
 
   int force_flag;
   double fsum[4],fsum_all[4];
-
-  virtual void init_prefactors();
 };
 
 }
