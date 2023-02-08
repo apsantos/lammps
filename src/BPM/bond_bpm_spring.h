@@ -40,7 +40,9 @@ class BondBPMSpring : public BondBPM {
 
  protected:
   double *k, *ecrit, *gamma;
+  double *kh, *tcrit;
   int smooth_flag;
+  int heat_flag;
 
   void allocate();
   void store_data();
