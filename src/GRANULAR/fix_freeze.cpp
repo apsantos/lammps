@@ -33,6 +33,8 @@ FixFreeze::FixFreeze(LAMMPS *lmp, int narg, char **arg) :
 
   if (!atom->torque_flag)
     error->all(FLERR,"Fix freeze requires atom attribute torque");
+  if (!atom->omega_flag)
+    error->all(FLERR,"Fix freeze requires atom attribute omega");
 
   vector_flag = 1;
   size_vector = 3;
@@ -88,6 +90,7 @@ void FixFreeze::post_force(int /*vflag*/)
 {
   double **f = atom->f;
   double **torque = atom->torque;
+  double **omega = atom->omega;
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
@@ -106,6 +109,9 @@ void FixFreeze::post_force(int /*vflag*/)
       torque[i][0] = 0.0;
       torque[i][1] = 0.0;
       torque[i][2] = 0.0;
+      omega[i][0] = 0.0;
+      omega[i][1] = 0.0;
+      omega[i][2] = 0.0;
     }
 }
 
