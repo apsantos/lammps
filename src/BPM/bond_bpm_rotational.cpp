@@ -1,4 +1,4 @@
- /* ----------------------------------------------------------------------
+../BPM/bond_bpm_rotational.cpp /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
    LAMMPS development team: developers@lammps.org
@@ -44,15 +44,17 @@ static double acos_limit(double c)
 
 BondBPMRotational::BondBPMRotational(LAMMPS *_lmp) :
     BondBPM(_lmp), Kr(nullptr), Ks(nullptr), Kt(nullptr), Kb(nullptr), gnorm(nullptr),
-    gslide(nullptr), groll(nullptr), gtwist(nullptr), Fcr(nullptr), Fcs(nullptr), Tct(nullptr),
+    gslide(nullptr), gtwist(nullptr), groll(nullptr), Fcr(nullptr), Fcs(nullptr), Tct(nullptr),
     Tcb(nullptr), Kh(nullptr), Fch(nullptr)
 {
   partial_flag = 1;
   smooth_flag = 1;
   heat_flag = 0;
 
-  single_extra = 7;
-  svector = new double[7];
+  //single_extra = 7;
+  //svector = new double[7];
+  single_extra = 10;
+  svector = new double[10];
 }
 
 /* ---------------------------------------------------------------------- */
@@ -73,8 +75,8 @@ BondBPMRotational::~BondBPMRotational()
     memory->destroy(Tcb);
     memory->destroy(gnorm);
     memory->destroy(gslide);
-    memory->destroy(groll);
     memory->destroy(gtwist);
+    memory->destroy(groll);
     if (heat_flag) {
       memory->destroy(Kh);
       memory->destroy(Fch);
@@ -363,6 +365,7 @@ double BondBPMRotational::elastic_forces(int i1, int i2, int type, double r_mag,
   breaking = Fr / Fcr[type] + Fs_mag / Fcs[type] + Tb_mag / Tcb[type] + Tt_mag / Tct[type];
   if (breaking < 0.0) breaking = 0.0;
 
+  //fprintf(screen,"BPM r_mag %e Fr %e Fs %e Tb %e Tt %e\n", (r_mag - r0_mag),Fr, Fs_mag, Tb_mag, Tt_mag);
   return breaking;
 }
 
@@ -644,8 +647,8 @@ void BondBPMRotational::coeff(int narg, char **arg)
   double Tcb_one = utils::numeric(FLERR, arg[8], false, lmp);
   double gnorm_one = utils::numeric(FLERR, arg[9], false, lmp);
   double gslide_one = utils::numeric(FLERR, arg[10], false, lmp);
-  double groll_one = utils::numeric(FLERR, arg[11], false, lmp);
-  double gtwist_one = utils::numeric(FLERR, arg[12], false, lmp);
+  double gtwist_one = utils::numeric(FLERR, arg[11], false, lmp);
+  double groll_one = utils::numeric(FLERR, arg[12], false, lmp);
   double Kh_one = 0.0;
   double Fch_one = 0.0;
   if (heat_flag) {
@@ -673,8 +676,8 @@ void BondBPMRotational::coeff(int narg, char **arg)
     Tcb[i] = Tcb_one;
     gnorm[i] = gnorm_one;
     gslide[i] = gslide_one;
-    groll[i] = groll_one;
     gtwist[i] = gtwist_one;
+    groll[i] = groll_one;
     if (heat_flag) {
       Kh[i] = Kh_one;
       Fch[i] = Fch_one;
@@ -755,8 +758,8 @@ void BondBPMRotational::write_restart(FILE *fp)
   fwrite(&Tcb[1], sizeof(double), atom->nbondtypes, fp);
   fwrite(&gnorm[1], sizeof(double), atom->nbondtypes, fp);
   fwrite(&gslide[1], sizeof(double), atom->nbondtypes, fp);
-  fwrite(&groll[1], sizeof(double), atom->nbondtypes, fp);
   fwrite(&gtwist[1], sizeof(double), atom->nbondtypes, fp);
+  fwrite(&groll[1], sizeof(double), atom->nbondtypes, fp);
   if (heat_flag) {
     fwrite(&Kh[1], sizeof(double), atom->nbondtypes, fp);
     fwrite(&Fch[1], sizeof(double), atom->nbondtypes, fp);
@@ -784,8 +787,8 @@ void BondBPMRotational::read_restart(FILE *fp)
     utils::sfread(FLERR, &Tcb[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
     utils::sfread(FLERR, &gnorm[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
     utils::sfread(FLERR, &gslide[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
-    utils::sfread(FLERR, &groll[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
     utils::sfread(FLERR, &gtwist[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
+    utils::sfread(FLERR, &groll[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
     if (heat_flag) {
       utils::sfread(FLERR, &Kh[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
       utils::sfread(FLERR, &Fch[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
@@ -801,8 +804,8 @@ void BondBPMRotational::read_restart(FILE *fp)
   MPI_Bcast(&Tcb[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
   MPI_Bcast(&gnorm[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
   MPI_Bcast(&gslide[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&groll[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
   MPI_Bcast(&gtwist[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&groll[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
   if (heat_flag) {
     MPI_Bcast(&Kh[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
     MPI_Bcast(&Fch[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
@@ -892,6 +895,9 @@ double BondBPMRotational::single(int type, double rsq, int i, int j, double &ffo
     svector[4] = force1on2[0] * smooth;
     svector[5] = force1on2[1] * smooth;
     svector[6] = force1on2[2] * smooth;
+    svector[7] = torque1on2[0] * smooth;
+    svector[8] = torque1on2[1] * smooth;
+    svector[9] = torque1on2[2] * smooth;
   } else {
     svector[1] = r0[0];
     svector[2] = r0[1];
@@ -899,6 +905,14 @@ double BondBPMRotational::single(int type, double rsq, int i, int j, double &ffo
     svector[4] = -force1on2[0] * smooth;
     svector[5] = -force1on2[1] * smooth;
     svector[6] = -force1on2[2] * smooth;
+    svector[7] = torque1on2[0] * smooth;
+    svector[8] = torque1on2[1] * smooth;
+    svector[9] = torque1on2[2] * smooth;
+/*
+    svector[7] = -torque1on2[0] * smooth;
+    svector[8] = -torque1on2[1] * smooth;
+    svector[9] = -torque1on2[2] * smooth;
+*/
   }
 
   return 0.0;
