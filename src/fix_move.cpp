@@ -279,7 +279,7 @@ FixMove::FixMove(LAMMPS *lmp, int narg, char **arg) :
 
   theta_flag = quat_flag = 0;
   if (line_flag) theta_flag = 1;
-  if (ellipsoid_flag || tri_flag || body_flag) quat_flag = 1;
+  if (atom->quat_flag || ellipsoid_flag || tri_flag || body_flag) quat_flag = 1;
 
   extra_flag = 0;
   if (omega_flag || angmom_flag || theta_flag || quat_flag) extra_flag = 1;
@@ -340,6 +340,8 @@ FixMove::FixMove(LAMMPS *lmp, int narg, char **arg) :
           quat = avec_tri->bonus[tri[i]].quat;
         else if (body_flag && body[i] >= 0)
           quat = avec_body->bonus[body[i]].quat;
+        else if (atom->quat_flag) 
+          quat = atom->quat[i];
       }
       if (quat) {
         qoriginal[i][0] = quat[0];
@@ -706,6 +708,7 @@ void FixMove::initial_integrate(int /*vflag*/)
             if (line_flag && line[i] >= 0.0) flag = 1;
             if (tri_flag && tri[i] >= 0.0) flag = 1;
             if (flag) {
+                
               omega[i][0] = omega_rotate * runit[0];
               omega[i][1] = omega_rotate * runit[1];
               omega[i][2] = omega_rotate * runit[2];
@@ -759,6 +762,8 @@ void FixMove::initial_integrate(int /*vflag*/)
               quat = avec_tri->bonus[tri[i]].quat;
             else if (body_flag && body[i] >= 0)
               quat = avec_body->bonus[body[i]].quat;
+            else if (atom->quat_flag)
+              quat = atom->quat[i];
             if (quat) MathExtra::quatquat(qrotate, qoriginal[i], quat);
           }
         }
