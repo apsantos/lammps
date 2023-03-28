@@ -1,4 +1,4 @@
-../BPM/bond_bpm_rotational.cpp /* ----------------------------------------------------------------------
+/* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
    LAMMPS development team: developers@lammps.org
