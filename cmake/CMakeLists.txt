@@ -168,8 +168,8 @@ endif()
 ########################################################################
 # User input options                                                   #
 ########################################################################
-# set path to python interpreter and thus enforcing python version if
-# when in a virtual environment and PYTHON_EXECUTABLE is not set on command line
+# set path to python interpreter and thus enforcing python version when
+# in a virtual environment and PYTHON_EXECUTABLE is not set on command line
 if(DEFINED ENV{VIRTUAL_ENV} AND NOT PYTHON_EXECUTABLE)
   if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     set(PYTHON_EXECUTABLE "$ENV{VIRTUAL_ENV}/Scripts/python.exe")
@@ -257,7 +257,6 @@ set(STANDARD_PACKAGES
   KIM
   KSPACE
   LATBOLTZ
-  LATTE
   LEPTON
   MACHDYN
   MANIFOLD
@@ -265,6 +264,7 @@ set(STANDARD_PACKAGES
   MC
   MDI
   MEAM
+  MESONT
   MGPT
   MISC
   ML-HDNNP
@@ -308,9 +308,8 @@ set(STANDARD_PACKAGES
   YAFF)
 
 set(SUFFIX_PACKAGES CORESHELL GPU KOKKOS OPT INTEL OPENMP)
-set(EXTRA_PACKAGES MESONT)
 
-foreach(PKG ${STANDARD_PACKAGES} ${EXTRA_PACKAGES} ${SUFFIX_PACKAGES})
+foreach(PKG ${STANDARD_PACKAGES} ${SUFFIX_PACKAGES})
   option(PKG_${PKG} "Build ${PKG} Package" OFF)
 endforeach()
 
@@ -441,7 +440,7 @@ if(BUILD_OMP)
   target_link_libraries(lmp PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-if(PKG_MSCG OR PKG_ATC OR PKG_AWPMD OR PKG_ML-QUIP OR PKG_ML-POD OR PKG_LATTE OR PKG_ELECTRODE)
+if(PKG_MSCG OR PKG_ATC OR PKG_AWPMD OR PKG_ML-QUIP OR PKG_ML-POD OR PKG_ELECTRODE)
   enable_language(C)
   if (NOT USE_INTERNAL_LINALG)
     find_package(LAPACK)
@@ -520,8 +519,8 @@ else()
   set(CUDA_REQUEST_PIC)
 endif()
 
-foreach(PKG_WITH_INCL KSPACE PYTHON ML-IAP VORONOI COLVARS ML-HDNNP MDI MOLFILE MESONT NETCDF
-        PLUMED QMMM ML-QUIP SCAFACOS MACHDYN VTK KIM LATTE MSCG COMPRESS ML-PACE LEPTON)
+foreach(PKG_WITH_INCL KSPACE PYTHON ML-IAP VORONOI COLVARS ML-HDNNP MDI MOLFILE NETCDF
+        PLUMED QMMM ML-QUIP SCAFACOS MACHDYN VTK KIM MSCG COMPRESS ML-PACE LEPTON)
   if(PKG_${PKG_WITH_INCL})
     include(Packages/${PKG_WITH_INCL})
   endif()
@@ -538,7 +537,10 @@ set(CMAKE_TUNE_FLAGS "${CMAKE_TUNE_DEFAULT}" CACHE STRING "Compiler and machine 
 separate_arguments(CMAKE_TUNE_FLAGS)
 foreach(_FLAG ${CMAKE_TUNE_FLAGS})
   target_compile_options(lammps PRIVATE ${_FLAG})
-  target_compile_options(lmp PRIVATE ${_FLAG})
+  # skip these flags when linking the main executable
+  if(NOT (("${_FLAG}" STREQUAL "-Xcudafe") OR (("${_FLAG}" STREQUAL "--diag_suppress=unrecognized_pragma"))))
+    target_compile_options(lmp PRIVATE ${_FLAG})
+  endif()
 endforeach()
 ########################################################################
 # Basic system tests (standard libraries, headers, functions, types)   #
@@ -566,7 +568,9 @@ RegisterStyles(${LAMMPS_SOURCE_DIR})
 ########################################################
 # Fetch missing external files and archives for packages
 ########################################################
-foreach(PKG ${STANDARD_PACKAGES} ${EXTRA_PACKAGES} ${SUFFIX_PACKAGES})
+option(DOWNLOAD_POTENTIALS "Automatically download large potential files" ON)
+mark_as_advanced(DOWNLOAD_POTENTIALS)
+foreach(PKG ${STANDARD_PACKAGES} ${SUFFIX_PACKAGES})
   if(PKG_${PKG})
     FetchPotentials(${LAMMPS_SOURCE_DIR}/${PKG} ${LAMMPS_POTENTIALS_DIR})
   endif()
@@ -706,7 +710,7 @@ target_include_directories(lammps PRIVATE ${LAMMPS_STYLE_HEADERS_DIR})
 ######################################
 set(temp "#ifndef LMP_INSTALLED_PKGS_H\n#define LMP_INSTALLED_PKGS_H\n")
 set(temp "${temp}const char * LAMMPS_NS::LAMMPS::installed_packages[] =  {\n")
-set(temp_PKG_LIST ${STANDARD_PACKAGES} ${EXTRA_PACKAGES} ${SUFFIX_PACKAGES})
+set(temp_PKG_LIST ${STANDARD_PACKAGES} ${SUFFIX_PACKAGES})
 list(SORT temp_PKG_LIST)
 foreach(PKG ${temp_PKG_LIST})
     if(PKG_${PKG})
@@ -836,9 +840,8 @@ if(BUILD_SHARED_LIBS)
   set(LIBLAMMPS_SHARED_BINARY ${MY_BUILD_DIR}/liblammps${LAMMPS_MACHINE}${CMAKE_SHARED_LIBRARY_SUFFIX})
   if(Python_EXECUTABLE)
     add_custom_target(
-      install-python ${CMAKE_COMMAND} -E remove_directory build
-      COMMAND ${Python_EXECUTABLE} ${LAMMPS_PYTHON_DIR}/install.py -p ${LAMMPS_PYTHON_DIR}/lammps
-              -l ${LIBLAMMPS_SHARED_BINARY} -w ${MY_BUILD_DIR}
+      install-python ${Python_EXECUTABLE} ${LAMMPS_PYTHON_DIR}/install.py -p ${LAMMPS_PYTHON_DIR}/lammps
+      -l ${LIBLAMMPS_SHARED_BINARY} -w ${MY_BUILD_DIR} -v ${LAMMPS_SOURCE_DIR}/version.h
       COMMENT "Installing LAMMPS Python module")
   else()
     add_custom_target(
@@ -851,35 +854,6 @@ else()
     ${CMAKE_COMMAND} -E echo "Must build LAMMPS as a shared library to use the Python module")
 endif()
 
-###############################################################################
-# Add LAMMPS python module to "install" target. This is taylored for building
-# LAMMPS for package managers and with different prefix settings.
-# This requires either a shared library or that the PYTHON package is included.
-###############################################################################
-if(BUILD_SHARED_LIBS OR PKG_PYTHON)
-  if(CMAKE_VERSION VERSION_LESS 3.12)
-    # adjust so we find Python 3 versions before Python 2 on old systems with old CMake
-    set(Python_ADDITIONAL_VERSIONS 3.12 3.11 3.10 3.9 3.8 3.7 3.6)
-    find_package(PythonInterp) # Deprecated since version 3.12
-    if(PYTHONINTERP_FOUND)
-      set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
-    endif()
-  else()
-    # backward compatibility
-    if(PYTHON_EXECUTABLE)
-      set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
-    endif()
-    find_package(Python COMPONENTS Interpreter)
-  endif()
-  if(Python_EXECUTABLE)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/lib)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/src)
-    file(COPY ${LAMMPS_SOURCE_DIR}/version.h  DESTINATION ${CMAKE_BINARY_DIR}/python/src)
-    file(COPY ${LAMMPS_PYTHON_DIR}/README ${LAMMPS_PYTHON_DIR}/pyproject.toml ${LAMMPS_PYTHON_DIR}/setup.py ${LAMMPS_PYTHON_DIR}/lammps  DESTINATION ${CMAKE_BINARY_DIR}/python/lib)
-    install(CODE "if(\"\$ENV{DESTDIR}\" STREQUAL \"\")\n execute_process(COMMAND ${Python_EXECUTABLE} -m pip install -v ${CMAKE_BINARY_DIR}/python/lib --prefix=${CMAKE_INSTALL_PREFIX})\n else()\n execute_process(COMMAND ${Python_EXECUTABLE} -m pip install -v ${CMAKE_BINARY_DIR}/python/lib --prefix=${CMAKE_INSTALL_PREFIX} --root=\$ENV{DESTDIR})\n endif()")
-  endif()
-endif()
-
 include(Testing)
 include(CodeCoverage)
 include(CodingStandard)
@@ -890,6 +864,23 @@ if(ClangFormat_FOUND)
     COMMAND ${ClangFormat_EXECUTABLE} --verbose -i -style=file *.cpp *.h */*.cpp */*.h
     WORKING_DIRECTORY ${LAMMPS_SOURCE_DIR})
 endif()
+
+# extract Kokkos compilation settings
+get_cmake_property(_allvars VARIABLES)
+foreach(_var ${_allvars})
+  if(${_var})
+    string(REGEX MATCH "Kokkos_ENABLE_(SERIAL|THREADS|OPENMP|CUDA|HIP|SYCL|OPENMPTARGET|HPX)" _match ${_var})
+    if(_match)
+      string(REGEX REPLACE "Kokkos_ENABLE_(OPENMP|SERIAL|CUDA|HIP|SYCL)" "\\1" _match ${_var})
+      list(APPEND KOKKOS_DEVICE ${_match})
+    endif()
+    string(REGEX MATCH "Kokkos_ARCH" _match ${_var})
+    if(_match)
+      string(REGEX REPLACE "Kokkos_ARCH_(.*)" "\\1" _match ${_var})
+      list(APPEND KOKKOS_ARCH ${_match})
+    endif()
+  endif()
+endforeach()
 
 get_target_property(DEFINES lammps COMPILE_DEFINITIONS)
 if(BUILD_IS_MULTI_CONFIG)
@@ -910,7 +901,7 @@ message(STATUS "<<< Build configuration >>>
 # Print package summary
 ###############################################################################
 set(ENABLED_PACKAGES)
-foreach(PKG ${STANDARD_PACKAGES} ${EXTRA_PACKAGES} ${SUFFIX_PACKAGES})
+foreach(PKG ${STANDARD_PACKAGES} ${SUFFIX_PACKAGES})
   if(PKG_${PKG})
     list(APPEND ENABLED_PACKAGES ${PKG})
   endif()
@@ -987,6 +978,12 @@ if(PKG_GPU)
     endif()
   endif()
   message(STATUS "GPU precision:            ${GPU_PREC}")
+endif()
+if(PKG_KOKKOS)
+  message(STATUS "Kokkos Devices: ${KOKKOS_DEVICE}")
+  if(KOKKOS_ARCH)
+    message(STATUS "Kokkos Architecture: ${KOKKOS_ARCH}")
+  endif()
 endif()
 if(PKG_KSPACE)
   message(STATUS "<<< FFT settings >>>
