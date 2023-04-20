@@ -1,7 +1,8 @@
-/* ----------------------------------------------------------------------
+// clang-format off
+/* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
-   http://lammps.sandia.gov, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+   https://www.lammps.org/, Sandia National Laboratories
+   LAMMPS development team: developers@lammps.org
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -22,26 +23,37 @@ class KokkosBase {
  public:
   KokkosBase() {}
 
-  //Kspace
-  virtual void pack_forward_kspace_kokkos(int, DAT::tdual_FFT_SCALAR_1d &, int, DAT::tdual_int_2d &, int) {};
-  virtual void unpack_forward_kspace_kokkos(int, DAT::tdual_FFT_SCALAR_1d &, int, DAT::tdual_int_2d &, int) {};
-  virtual void pack_reverse_kspace_kokkos(int, DAT::tdual_FFT_SCALAR_1d &, int, DAT::tdual_int_2d &, int) {};
-  virtual void unpack_reverse_kspace_kokkos(int, DAT::tdual_FFT_SCALAR_1d &, int, DAT::tdual_int_2d &, int) {};
-
   // Pair
   virtual int pack_forward_comm_kokkos(int, DAT::tdual_int_2d,
                                        int, DAT::tdual_xfloat_1d &,
                                        int, int *) {return 0;};
   virtual void unpack_forward_comm_kokkos(int, int, DAT::tdual_xfloat_1d &) {}
 
+  virtual int pack_reverse_comm_kokkos(int, int, DAT::tdual_xfloat_1d &) {return 0;};
+  virtual void unpack_reverse_comm_kokkos(int, DAT::tdual_int_2d,
+                                          int, DAT::tdual_xfloat_1d &) {}
+
+  // Fix
+  virtual int pack_forward_comm_fix_kokkos(int, DAT::tdual_int_2d,
+                                           int, DAT::tdual_xfloat_1d &,
+                                           int, int *) {return 0;};
+  virtual void unpack_forward_comm_fix_kokkos(int, int, DAT::tdual_xfloat_1d &) {}
+
+
   // Region
   virtual void match_all_kokkos(int, DAT::tdual_int_1d) {}
+
+  // Fix
+  virtual int pack_exchange_kokkos(const int & /*nsend*/, DAT::tdual_xfloat_2d & /*k_buf*/,
+                                   DAT::tdual_int_1d /*k_sendlist*/,
+                                   DAT::tdual_int_1d /*k_copylist*/,
+                                   ExecutionSpace /*space*/) { return 0; }
+  virtual void unpack_exchange_kokkos(DAT::tdual_xfloat_2d & /*k_buf*/,
+                                      DAT::tdual_int_1d & /*indices*/, int /*nrecv*/,
+                                      ExecutionSpace /*space*/) {}
 };
 
 }
 
 #endif
 
-/* ERROR/WARNING messages:
-
-*/

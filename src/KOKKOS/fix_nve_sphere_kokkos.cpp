@@ -1,7 +1,8 @@
+// clang-format off
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
-   http://lammps.sandia.gov, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+   https://www.lammps.org/, Sandia National Laboratories
+   LAMMPS development team: developers@lammps.org
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -30,8 +31,8 @@ FixNVESphereKokkos<DeviceType>::FixNVESphereKokkos(LAMMPS *lmp, int narg, char *
   atomKK = (AtomKokkos *)atom;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
 
-  datamask_read = F_MASK | TORQUE_MASK | RMASS_MASK | RADIUS_MASK | MASK_MASK;
-  datamask_modify = X_MASK | V_MASK | OMEGA_MASK;
+  datamask_read = EMPTY_MASK;
+  datamask_modify = EMPTY_MASK;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -39,8 +40,8 @@ FixNVESphereKokkos<DeviceType>::FixNVESphereKokkos(LAMMPS *lmp, int narg, char *
 template<class DeviceType>
 void FixNVESphereKokkos<DeviceType>::cleanup_copy()
 {
-  id = style = NULL;
-  vatom = NULL;
+  id = style = nullptr;
+  vatom = nullptr;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -49,19 +50,17 @@ template<class DeviceType>
 void FixNVESphereKokkos<DeviceType>::init()
 {
   FixNVESphere::init();
-
-  if (extra == DIPOLE) {
-    error->all(FLERR,"Fix nve/sphere/kk doesn't yet support dipole");
-  }
 }
 
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void FixNVESphereKokkos<DeviceType>::initial_integrate(int vflag)
+void FixNVESphereKokkos<DeviceType>::initial_integrate(int /*vflag*/)
 {
-  atomKK->sync(execution_space,datamask_read);
-  atomKK->modified(execution_space,datamask_modify);
+  if (extra == DIPOLE)
+    atomKK->sync(execution_space, X_MASK | V_MASK | OMEGA_MASK| F_MASK | TORQUE_MASK | RMASS_MASK | RADIUS_MASK | MASK_MASK | MU_MASK);
+  else
+    atomKK->sync(execution_space, X_MASK | V_MASK | OMEGA_MASK| F_MASK | TORQUE_MASK | RMASS_MASK | RADIUS_MASK | MASK_MASK);
 
   x = atomKK->k_x.view<DeviceType>();
   v = atomKK->k_v.view<DeviceType>();
@@ -71,12 +70,18 @@ void FixNVESphereKokkos<DeviceType>::initial_integrate(int vflag)
   mask = atomKK->k_mask.view<DeviceType>();
   rmass = atomKK->k_rmass.view<DeviceType>();
   radius = atomKK->k_radius.view<DeviceType>();
+  mu = atomKK->k_mu.view<DeviceType>();
 
   int nlocal = atom->nlocal;
   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
 
   FixNVESphereKokkosInitialIntegrateFunctor<DeviceType> f(this);
   Kokkos::parallel_for(nlocal,f);
+
+  if (extra == DIPOLE)
+    atomKK->modified(execution_space,  X_MASK | V_MASK | OMEGA_MASK | MU_MASK);
+  else
+    atomKK->modified(execution_space,  X_MASK | V_MASK | OMEGA_MASK);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -100,6 +105,17 @@ void FixNVESphereKokkos<DeviceType>::initial_integrate_item(const int i) const
     omega(i,0) += dtirotate * torque(i,0);
     omega(i,1) += dtirotate * torque(i,1);
     omega(i,2) += dtirotate * torque(i,2);
+
+    if (extra == DIPOLE) {
+      const double g0 = mu(i,0) + dtv * (omega(i,1) * mu(i,2) - omega(i,2) * mu(i,1));
+      const double g1 = mu(i,1) + dtv * (omega(i,2) * mu(i,0) - omega(i,0) * mu(i,2));
+      const double g2 = mu(i,2) + dtv * (omega(i,0) * mu(i,1) - omega(i,1) * mu(i,0));
+      const double msq = g0*g0 + g1*g1 + g2*g2;
+      const double scale = mu(i,3)/sqrt(msq);
+      mu(i,0) = g0*scale;
+      mu(i,1) = g1*scale;
+      mu(i,2) = g2*scale;
+    }
   }
 }
 
@@ -108,8 +124,7 @@ void FixNVESphereKokkos<DeviceType>::initial_integrate_item(const int i) const
 template<class DeviceType>
 void FixNVESphereKokkos<DeviceType>::final_integrate()
 {
-  atomKK->sync(execution_space,datamask_read);
-  atomKK->modified(execution_space,datamask_modify);
+  atomKK->sync(execution_space, V_MASK | OMEGA_MASK| F_MASK | TORQUE_MASK | RMASS_MASK | RADIUS_MASK | MASK_MASK);
 
   v = atomKK->k_v.view<DeviceType>();
   omega = atomKK->k_omega.view<DeviceType>();
@@ -124,6 +139,8 @@ void FixNVESphereKokkos<DeviceType>::final_integrate()
 
   FixNVESphereKokkosFinalIntegrateFunctor<DeviceType> f(this);
   Kokkos::parallel_for(nlocal,f);
+
+  atomKK->modified(execution_space, V_MASK | OMEGA_MASK);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -149,7 +166,7 @@ void FixNVESphereKokkos<DeviceType>::final_integrate_item(const int i) const
 
 namespace LAMMPS_NS {
 template class FixNVESphereKokkos<LMPDeviceType>;
-#ifdef KOKKOS_ENABLE_CUDA
+#ifdef LMP_KOKKOS_GPU
 template class FixNVESphereKokkos<LMPHostType>;
 #endif
 }

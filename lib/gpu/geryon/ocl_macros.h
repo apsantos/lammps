@@ -4,6 +4,10 @@
 #include <cstdio>
 #include <cassert>
 
+#ifndef CL_TARGET_OPENCL_VERSION
+#define CL_TARGET_OPENCL_VERSION 300
+#endif
+
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
 #else
@@ -29,6 +33,9 @@
 #ifdef UCL_DEBUG
 #define UCL_SYNC_DEBUG
 #define UCL_DESTRUCT_CHECK
+#define UCL_DEBUG_ARG(arg) arg
+#else
+#define UCL_DEBUG_ARG(arg)
 #endif
 
 #ifndef UCL_NO_API_CHECK
