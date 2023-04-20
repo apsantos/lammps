@@ -29,6 +29,7 @@ ComputeNBondAtom::ComputeNBondAtom(LAMMPS *_lmp, int narg, char **arg) :
 
   peratom_flag = 1;
   size_peratom_cols = 0;
+  //timeflag = 1;
   comm_reverse = 1;
 
   nmax = 0;
@@ -45,6 +46,9 @@ ComputeNBondAtom::~ComputeNBondAtom()
 
 void ComputeNBondAtom::compute_peratom()
 {
+
+  invoked_peratom = update->ntimestep;
+
   // grow local nbond array if necessary
   // needs to be atom->nmax in length
 
