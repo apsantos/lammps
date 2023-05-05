@@ -17,6 +17,7 @@
 #include "comm.h"
 #include "force.h"
 #include "memory.h"
+#include "update.h"
 
 using namespace LAMMPS_NS;
 
