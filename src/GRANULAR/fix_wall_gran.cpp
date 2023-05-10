@@ -276,6 +276,8 @@ FixWallGran::FixWallGran(LAMMPS *lmp, int narg, char **arg) :
 
 FixWallGran::~FixWallGran()
 {
+  if (copymode) return;
+
   // unregister callbacks to this fix from Atom class
 
   atom->delete_callback(id,Atom::GROW);
@@ -452,7 +454,7 @@ void FixWallGran::post_force(int /*vflag*/)
   }
 
   for (int i = 0; i < nlocal; i++) {
-    if (! mask[i] & groupbit) continue;
+    if ((!mask[i]) & groupbit) continue;
 
     dx = dy = dz = 0.0;
 

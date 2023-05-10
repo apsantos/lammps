@@ -10,7 +10,7 @@ Syntax
 
    atom_style style args
 
-* style = *amoeba* or *angle* or *atomic* or *body* or *bond* or *charge* or *dielectric* or *dipole* or  *dpd* or *edpd* or *electron* or *ellipsoid* or *full* or *line* or *mdpd* or *mesont* or *molecular* or *oxdna* or *peri* or *smd* or *sph* or *sphere* or *bpm/sphere* or *spin* or *tdpd* or *tri* or *template* or *wavepacket* or *hybrid*
+* style = *amoeba* or *angle* or *atomic* or *body* or *bond* or *charge* or *dielectric* or *dipole* or  *dpd* or *edpd* or *electron* or *ellipsoid* or *full* or *line* or *mdpd* or *molecular* or *oxdna* or *peri* or *smd* or *sph* or *sphere* or *bpm/sphere* or *spin* or *tdpd* or *tri* or *template* or *wavepacket* or *hybrid*
 
   .. parsed-literal::
 
@@ -109,8 +109,6 @@ quantities.
 +--------------+-----------------------------------------------------+--------------------------------------+
 | *mdpd*       | density                                             | mDPD particles                       |
 +--------------+-----------------------------------------------------+--------------------------------------+
-| *mesont*     | mass, radius, length, buckling, connections, tube id| mesoscopic nanotubes                 |
-+--------------+-----------------------------------------------------+--------------------------------------+
 | *molecular*  | bonds, angles, dihedrals, impropers                 | uncharged molecules                  |
 +--------------+-----------------------------------------------------+--------------------------------------+
 | *oxdna*      | nucleotide polarity                                 | coarse-grained DNA and RNA models    |
@@ -122,8 +120,6 @@ quantities.
 | *sph*        | rho, esph, cv                                       | SPH particles                        |
 +--------------+-----------------------------------------------------+--------------------------------------+
 | *sphere*     | diameter, mass, angular velocity                    | granular models                      |
-+--------------+-----------------------------------------------------+--------------------------------------+
-| *sphere/temp*| diameter, mass, angular velocity, temperature       | thermal granular models              |
 +--------------+-----------------------------------------------------+--------------------------------------+
 | *bpm/sphere* | diameter, mass, angular velocity, quaternion        | granular bonded particle models (BPM)|
 +--------------+-----------------------------------------------------+--------------------------------------+
@@ -150,7 +146,7 @@ quantities.
    custom values.
 
 All of the above styles define point particles, except the *sphere*,
-*sphere/temp*, *bpm/sphere*, *ellipsoid*, *electron*, *peri*, *wavepacket*, *line*,
+*bpm/sphere*, *ellipsoid*, *electron*, *peri*, *wavepacket*, *line*,
 *tri*, and *body* styles, which define finite-size particles.  See the
 :doc:`Howto spherical <Howto_spherical>` page for an overview of using
 finite-size particle models with LAMMPS.
@@ -160,11 +156,11 @@ per-type basis, using the :doc:`mass <mass>` command, The finite-size
 particle styles assign mass to individual particles on a per-particle
 basis.
 
-For the *sphere*, *sphere/temp*, and *bpm/sphere* styles, the particles
-are spheres and each stores a per-particle diameter and mass.  If the
-diameter > 0.0, the particle is a finite-size sphere.  If the diameter
-= 0.0, it is a point particle.  Note that by use of the *disc* keyword
-with the :doc:`fix nve/sphere <fix_nve_sphere>`, :doc:`fix nvt/sphere
+For the *sphere* and *bpm/sphere* styles, the particles are spheres
+and each stores a per-particle diameter and mass.  If the diameter >
+0.0, the particle is a finite-size sphere.  If the diameter = 0.0, it
+is a point particle.  Note that by use of the *disc* keyword with the
+:doc:`fix nve/sphere <fix_nve_sphere>`, :doc:`fix nvt/sphere
 <fix_nvt_sphere>`, :doc:`fix nph/sphere <fix_nph_sphere>`,
 :doc:`fix npt/sphere <fix_npt_sphere>` commands for the *sphere* style,
 spheres can be effectively treated as 2d discs for a 2d simulation if
@@ -285,7 +281,7 @@ showing the use of the *template* atom style versus *molecular*.
 .. note::
 
    When using the *template* style with a :doc:`molecule template
-   <molecule>` that contains multiple molecules, you should insure the
+   <molecule>` that contains multiple molecules, you should ensure the
    atom types, bond types, angle_types, etc in all the molecules are
    consistent.  E.g. if one molecule represents H2O and another CO2,
    then you probably do not want each molecule file to define 2 atom
@@ -382,8 +378,6 @@ dynamics (tDPD), respectively.
 The *sph* style is part of the SPH package for smoothed particle
 hydrodynamics (SPH).  See `this PDF guide
 <PDF/SPH_LAMMPS_userguide.pdf>`_ to using SPH in LAMMPS.
-
-The *mesont* style is part of the MESONT package.
 
 The *spin* style is part of the SPIN package.
 
