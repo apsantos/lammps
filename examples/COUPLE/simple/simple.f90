@@ -1,6 +1,6 @@
 !  LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
-!  https://www.lammps.org/, Sandia National Laboratories
-!  LAMMPS development team: developers@lammps.org
+!  https://www.lammps.org
+!  LAMMPS Development team: developers@lammps.org, Sandia National Laboratories
 !
 !  Copyright (2003) Sandia Corporation.  Under the terms of Contract
 !  DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -18,8 +18,8 @@
 !   See README for compilation instructions
 
 PROGRAM f_driver
-  USE liblammps
   USE mpi
+  USE liblammps
   IMPLICIT NONE
 
   INTEGER, PARAMETER :: fp=20
@@ -129,10 +129,7 @@ PROGRAM f_driver
 
   ! free LAMMPS object
 
-  IF (color == 1) THEN
-      CALL lmp%CLOSE()
-      CALL mpi_comm_free(comm_lammps,ierr)
-  END IF
+  IF (color == 1) CALL lmp%close()
 
   ! close down MPI
 

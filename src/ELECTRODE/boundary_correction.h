@@ -27,10 +27,20 @@ class BoundaryCorrection : protected Pointers {
   BoundaryCorrection(LAMMPS *);
   virtual void vector_corr(double *, int, int, bool){};
   virtual void matrix_corr(bigint *, double **){};
-  virtual void compute_corr(double, int, int, double &, double *){};
+  virtual void compute_corr(double, double, int, int, double &, double *){};
+  void setup(double, double, double);
+  void setup(double, double, double, double);
 
  protected:
-  double get_volume();
+  double area;
+  double volume;
+  double xprd_wire;
+  double yprd_wire;
+  double zprd_slab;
+  double qqrd2e;
+  double scale;
+  double g_ewald;
+
   std::vector<bigint> gather_jmat(bigint *);
   std::vector<int> gather_recvcounts(int);
   std::vector<int> gather_displs(const std::vector<int> &);

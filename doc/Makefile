@@ -86,19 +86,18 @@ html: xmlgen $(VENV) $(SPHINXCONFIG)/conf.py $(ANCHORCHECK) $(MATHJAX)
 	@if [ "$(HAS_BASH)" == "NO" ] ; then echo "bash was not found at $(OSHELL)! Please use: $(MAKE) SHELL=/path/to/bash" 1>&2; exit 1; fi
 	@$(MAKE) $(MFLAGS) -C graphviz all
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate ; env PYTHONWARNINGS= \
 		sphinx-build -E $(SPHINXEXTRA) -b html -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) html ;\
-		touch $(RSTDIR)/Fortran.rst ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		touch $(RSTDIR)/Fortran.rst ;\
 		sphinx-build $(SPHINXEXTRA) -b html -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) html ;\
 		ln -sf Manual.html html/index.html;\
 		rm -f $(BUILDDIR)/doxygen/xml/run.stamp;\
-		echo "############################################" ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		echo "############################################" ;\
 		rst_anchor_check src/*.rst ;\
-		$(PYTHON) $(BUILDDIR)/utils/check-packages.py -s ../src -d src ;\
+		python $(BUILDDIR)/utils/check-packages.py -s ../src -d src ;\
 		env LC_ALL=C grep -n '[^ -~]' $(RSTDIR)/*.rst ;\
 		env LC_ALL=C grep -n ' :[a-z]\+`' $(RSTDIR)/*.rst ;\
-		env LC_ALL=C grep -n ' `[^`]\+<[a-z][^`]\+`[^_]' $(RSTDIR)/*.rst ;\
-		$(PYTHON) $(BUILDDIR)/utils/check-styles.py -s ../src -d src ;\
+		python $(BUILDDIR)/utils/check-styles.py -s ../src -d src ;\
 		echo "############################################" ;\
 		deactivate ;\
 	)
@@ -115,9 +114,9 @@ fasthtml: xmlgen $(VENV) $(SPHINXCONFIG)/conf.py $(ANCHORCHECK) $(MATHJAX)
 	@$(MAKE) $(MFLAGS) -C graphviz all
 	@mkdir -p fasthtml
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate ; env PYTHONWARNINGS= \
 		sphinx-build $(SPHINXEXTRA) -b html -c $(SPHINXCONFIG) -d $(BUILDDIR)/fasthtml/doctrees $(RSTDIR) fasthtml ;\
-		touch $(RSTDIR)/Fortran.rst ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		touch $(RSTDIR)/Fortran.rst ;\
 		sphinx-build $(SPHINXEXTRA) -b html -c $(SPHINXCONFIG) -d $(BUILDDIR)/fasthtml/doctrees $(RSTDIR) fasthtml ;\
 		deactivate ;\
 	)
@@ -132,8 +131,8 @@ fasthtml: xmlgen $(VENV) $(SPHINXCONFIG)/conf.py $(ANCHORCHECK) $(MATHJAX)
 spelling: xmlgen $(SPHINXCONFIG)/conf.py $(VENV) $(SPHINXCONFIG)/false_positives.txt
 	@if [ "$(HAS_BASH)" == "NO" ] ; then echo "bash was not found at $(OSHELL)! Please use: $(MAKE) SHELL=/path/to/bash" 1>&2; exit 1; fi
 	@(\
-		. $(VENV)/bin/activate ; \
-		cp $(SPHINXCONFIG)/false_positives.txt $(RSTDIR)/;  env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate ; env PYTHONWARNINGS= \
+		cp $(SPHINXCONFIG)/false_positives.txt $(RSTDIR)/ ; env PYTHONWARNINGS= \
 		sphinx-build -b spelling -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) spelling ;\
 		rm -f $(BUILDDIR)/doxygen/xml/run.stamp;\
 		deactivate ;\
@@ -147,9 +146,9 @@ epub: xmlgen $(VENV) $(SPHINXCONFIG)/conf.py $(ANCHORCHECK)
 	@rm -f LAMMPS.epub
 	@cp src/JPG/*.* epub/JPG
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate ;\
 		sphinx-build -E $(SPHINXEXTRA) -b epub -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) epub ;\
-		touch $(RSTDIR)/Fortran.rst ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		touch $(RSTDIR)/Fortran.rst ;\
 		sphinx-build $(SPHINXEXTRA) -b epub -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) epub ;\
 		rm -f $(BUILDDIR)/doxygen/xml/run.stamp;\
 		deactivate ;\
@@ -168,18 +167,17 @@ pdf: xmlgen $(VENV) $(SPHINXCONFIG)/conf.py $(ANCHORCHECK)
 	@$(MAKE) $(MFLAGS) -C graphviz all
 	@if [ "$(HAS_PDFLATEX)" == "NO" ] ; then echo "PDFLaTeX or latexmk were not found! Please check README for further instructions" 1>&2; exit 1; fi
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate ; env PYTHONWARNINGS= \
 		sphinx-build -E $(SPHINXEXTRA) -b latex -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) latex ;\
-		touch $(RSTDIR)/Fortran.rst ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		touch $(RSTDIR)/Fortran.rst ;\
 		sphinx-build  $(SPHINXEXTRA) -b latex -c $(SPHINXCONFIG) -d $(BUILDDIR)/doctrees $(RSTDIR) latex ;\
 		rm -f $(BUILDDIR)/doxygen/xml/run.stamp;\
-		echo "############################################" ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		echo "############################################" ;\
 		rst_anchor_check src/*.rst ;\
-		$(PYTHON) utils/check-packages.py -s ../src -d src ;\
+		python utils/check-packages.py -s ../src -d src ;\
 		env LC_ALL=C grep -n '[^ -~]' $(RSTDIR)/*.rst ;\
 		env LC_ALL=C grep -n ' :[a-z]\+`' $(RSTDIR)/*.rst ;\
-		env LC_ALL=C grep -n ' `[^`]\+<[a-z][^`]\+`[^_]' $(RSTDIR)/*.rst ;\
-		$(PYTHON) utils/check-styles.py -s ../src -d src ;\
+		python utils/check-styles.py -s ../src -d src ;\
 		echo "############################################" ;\
 		deactivate ;\
 	)
@@ -202,22 +200,22 @@ pdf: xmlgen $(VENV) $(SPHINXCONFIG)/conf.py $(ANCHORCHECK)
 
 anchor_check : $(ANCHORCHECK)
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate ;\
 		rst_anchor_check src/*.rst ;\
 		deactivate ;\
 	)
 
 style_check : $(VENV)
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
-		$(PYTHON) utils/check-styles.py -s ../src -d src ;\
+		. $(VENV)/bin/activate ;\
+		python utils/check-styles.py -s ../src -d src ;\
 		deactivate ;\
 	)
 
 package_check : $(VENV)
 	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
-		$(PYTHON) utils/check-packages.py -s ../src -d src ;\
+		. $(VENV)/bin/activate ;\
+		python utils/check-packages.py -s ../src -d src ;\
 		deactivate ;\
 	)
 
@@ -226,14 +224,6 @@ char_check :
 
 role_check :
 	@( env LC_ALL=C grep -n ' :[a-z]\+`' $(RSTDIR)/*.rst && exit 1 || : )
-	@( env LC_ALL=C grep -n ' `[^`]\+<[a-z][^`]\+`[^_]' $(RSTDIR)/*.rst && exit 1 || : )
-
-link_check : $(VENV) html
-	@(\
-		. $(VENV)/bin/activate ; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
-		linkchecker -F html --check-extern html/Manual.html ;\
-		deactivate ;\
-	)
 
 xmlgen : doxygen/xml/index.xml
 
@@ -262,7 +252,7 @@ $(MATHJAX):
 
 $(ANCHORCHECK): $(VENV)
 	@( \
-		. $(VENV)/bin/activate; env PYTHONWARNINGS= PYTHONDONTWRITEBYTECODE=1 \
+		. $(VENV)/bin/activate; \
 		pip $(PIP_OPTIONS) install -e utils/converters;\
 		deactivate;\
 	)

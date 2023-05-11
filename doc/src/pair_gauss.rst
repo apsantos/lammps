@@ -103,13 +103,12 @@ Mixing, shift, table, tail correction, restart, rRESPA info
 
 For atom type pairs I,J and I != J, the A, B, H, sigma_h, r_mh
 parameters, and the cutoff distance for these pair styles can be mixed:
-
-* A (energy units)
-* :math:`\sqrt{\frac{1}{B}}` (distance units, see below)
-* H (energy units)
-* :math:`r_{mh}` (distance units)
-* :math:`\sigma_h` (distance units)
-* cutoff (distance units)
+A (energy units)
+sqrt(1/B) (distance units, see below)
+H (energy units)
+sigma_h (distance units)
+r_mh (distance units)
+cutoff (distance units):ul
 
 The default mix value is *geometric*\ .
 Only *arithmetic* and *geometric* mix values are supported.
@@ -128,8 +127,9 @@ before mixing, and converted back after mixing
 This way, if either particle is repulsive (if Ai<0 or Aj<0),
 then the default interaction between both particles will be repulsive.
 
-For the *gauss* style there is no effect due to the Gaussian well
-beyond the cutoff; hence reasonable cutoffs need to be specified.
+The *gauss* style does not support the :doc:`pair_modify <pair_modify>`
+shift option. There is no effect due to the Gaussian well beyond the
+cutoff; hence reasonable cutoffs need to be specified.
 
 The *gauss/cut* style supports the :doc:`pair_modify <pair_modify>` shift
 option for the energy of the Gauss-potential portion of the pair
@@ -170,7 +170,7 @@ The *gauss* and *gauss/cut* styles are part of the EXTRA-PAIR package.
 They are only enabled if LAMMPS is build with that package.  See the
 :doc:`Build package <Build_package>` page for more info.
 
-.. versionchanged:: 28Mar2023
+.. versionchanged:: TBD
 
 Prior to this version, the *gauss* pair style did not apply
 :doc:`special_bonds <special_bonds>` factors.

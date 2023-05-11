@@ -28,8 +28,8 @@
 using namespace LAMMPS_NS;
 using namespace MathConst;
 
-static constexpr double SMALL = 0.001;
-static constexpr double SMALLG = 2.0e-308;
+#define SMAL 0.001
+#define SMALL 2.0e-308
 
 /* ---------------------------------------------------------------------- */
 
@@ -112,7 +112,7 @@ void AngleGaussian::compute(int eflag, int vflag)
     if (c < -1.0) c = -1.0;
 
     s = sqrt(1.0 - c * c);
-    if (s < SMALL) s = SMALL;
+    if (s < SMAL) s = SMAL;
     s = 1.0 / s;
 
     // force & energy
@@ -130,7 +130,7 @@ void AngleGaussian::compute(int eflag, int vflag)
     }
 
     // avoid overflow
-    if (sum_g_i < sum_numerator * SMALLG) sum_g_i = sum_numerator * SMALLG;
+    if (sum_g_i < sum_numerator * SMALL) sum_g_i = sum_numerator * SMALL;
 
     if (eflag) eangle = -(force->boltz * angle_temperature[type]) * log(sum_g_i);
 
@@ -200,16 +200,14 @@ void AngleGaussian::allocate()
 
 void AngleGaussian::coeff(int narg, char **arg)
 {
-  if (narg < 6) utils::missing_cmd_args(FLERR, "angle_coeff", error);
+  if (narg < 6) error->all(FLERR, "Incorrect args for angle coefficients");
 
   int ilo, ihi;
   utils::bounds(FLERR, arg[0], 1, atom->nangletypes, ilo, ihi, error);
 
   double angle_temperature_one = utils::numeric(FLERR, arg[1], false, lmp);
   int n = utils::inumeric(FLERR, arg[2], false, lmp);
-  if (n < 1) error->all(FLERR, "Invalid angle style gaussian value for n: {}", n);
-
-  if (narg != 3 * n + 3) utils::missing_cmd_args(FLERR, "angle_coeff", error);
+  if (narg != 3 * n + 3) error->all(FLERR, "Incorrect args for angle coefficients");
 
   if (!allocated) allocate();
 
@@ -227,9 +225,7 @@ void AngleGaussian::coeff(int narg, char **arg)
     theta0[i] = new double[n];
     for (int j = 0; j < n; j++) {
       alpha[i][j] = utils::numeric(FLERR, arg[3 + 3 * j], false, lmp);
-      if (alpha[i][j] <= 0.0) error->all(FLERR, "Invalid value for A_{}: {}", j, alpha[i][j]);
       width[i][j] = utils::numeric(FLERR, arg[4 + 3 * j], false, lmp);
-      if (width[i][j] <= 0.0) error->all(FLERR, "Invalid value for w_{}: {}", j, width[i][j]);
       theta0[i][j] = utils::numeric(FLERR, arg[5 + 3 * j], false, lmp) * MY_PI / 180.0;
       setflag[i] = 1;
     }

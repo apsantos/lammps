@@ -3,11 +3,11 @@
 
 mode=$1
 
-# arg1 = file, arg2 = file it depends on
-
 # enforce using portable C locale
 LC_ALL=C
 export LC_ALL
+
+# arg1 = file, arg2 = file it depends on
 
 action () {
   if (test $mode = 0) then
@@ -37,36 +37,31 @@ done
 if (test $1 = 1) then
 
   if (test -e ../Makefile.package) then
-    sed -i -e 's/[^ \t]*lepton[^ \t]* //g' ../Makefile.package
-    sed -i -e 's|^PKG_INC =[ \t]*|&-I..\/..\/lib\/lepton\/include -I..\/..\/lib\/lepton |' ../Makefile.package
-    sed -i -e 's|^PKG_PATH =[ \t]*|&-L..\/..\/lib\/lepton$(LIBOBJDIR) |' ../Makefile.package
-    sed -i -e 's|^PKG_LIB =[ \t]*|&-llepton |' ../Makefile.package
-    sed -i -e 's|^PKG_SYSINC =[ \t]*|&$(lepton_SYSINC) |' ../Makefile.package
-    sed -i -e 's|^PKG_SYSLIB =[ \t]*|&$(lepton_SYSLIB) |' ../Makefile.package
-    sed -i -e 's|^PKG_SYSPATH =[ \t]*|&$(lepton_SYSPATH) |' ../Makefile.package
+    sed -i -e 's/[^ \t]*mesont[^ \t]* //' ../Makefile.package
+    sed -i -e 's|^PKG_INC =[ \t]*|&-I../../lib/mesont |' ../Makefile.package
+    sed -i -e 's|^PKG_PATH =[ \t]*|&-L../../lib/mesont |' ../Makefile.package
+    sed -i -e 's|^PKG_LIB =[ \t]*|&-lmesont |' ../Makefile.package
+    sed -i -e 's|^PKG_SYSINC =[ \t]*|&$(mesont_SYSINC) |' ../Makefile.package
+    sed -i -e 's|^PKG_SYSLIB =[ \t]*|&$(mesont_SYSLIB) |' ../Makefile.package
+    sed -i -e 's|^PKG_SYSPATH =[ \t]*|&$(mesont_SYSPATH) |' ../Makefile.package
   fi
 
   if (test -e ../Makefile.package.settings) then
-    sed -i -e '/^[ \t]*include.*lepton.*$/d' ../Makefile.package.settings
+    sed -i -e '/^[ \t]*include.*mesont.*$/d' ../Makefile.package.settings
     # multiline form needed for BSD sed on Macs
     sed -i -e '4 i \
-include ..\/..\/lib\/lepton\/Makefile.lammps
+include ..\/..\/lib\/mesont\/Makefile.lammps
 ' ../Makefile.package.settings
-
   fi
 
 elif (test $1 = 0) then
 
   if (test -e ../Makefile.package) then
-    if (test ! -e ../fix_colvars.cpp) then
-      sed -i -e 's/[^ \t]*lepton[^ \t]* //g' ../Makefile.package
-    fi
+    sed -i -e 's/[^ \t]*mesont[^ \t]* //' ../Makefile.package
   fi
 
   if (test -e ../Makefile.package.settings) then
-    if (test ! -e ../fix_colvars.cpp) then
-      sed -i -e '/^[ \t]*include.*lepton.*$/d' ../Makefile.package.settings
-    fi
+    sed -i -e '/^[ \t]*include.*mesont.*$/d' ../Makefile.package.settings
   fi
 
 fi

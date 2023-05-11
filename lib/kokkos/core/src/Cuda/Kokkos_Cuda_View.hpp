@@ -69,10 +69,12 @@ struct CudaTextureFetch {
   // Deference operator pulls through texture object and returns by value
   template <typename iType>
   KOKKOS_INLINE_FUNCTION ValueType operator[](const iType& i) const {
-    KOKKOS_IF_ON_DEVICE(
-        (AliasType v = tex1Dfetch<AliasType>(m_obj, i + m_offset);
-         return *(reinterpret_cast<ValueType*>(&v));))
-    KOKKOS_IF_ON_HOST((return m_ptr[i];))
+#if defined(__CUDA_ARCH__) && (300 <= __CUDA_ARCH__)
+    AliasType v = tex1Dfetch<AliasType>(m_obj, i + m_offset);
+    return *(reinterpret_cast<ValueType*>(&v));
+#else
+    return m_ptr[i];
+#endif
   }
 
   // Pointer to referenced memory
@@ -137,13 +139,11 @@ struct CudaLDGFetch {
 
   template <typename iType>
   KOKKOS_INLINE_FUNCTION ValueType operator[](const iType& i) const {
-#if defined(KOKKOS_ARCH_KEPLER30) || defined(KOKKOS_ARCH_KEPLER32)
-    return m_ptr[i];
+#if defined(__CUDA_ARCH__) && (350 <= __CUDA_ARCH__)
+    AliasType v = __ldg(reinterpret_cast<const AliasType*>(&m_ptr[i]));
+    return *(reinterpret_cast<ValueType*>(&v));
 #else
-    KOKKOS_IF_ON_DEVICE(
-        (AliasType v = __ldg(reinterpret_cast<const AliasType*>(&m_ptr[i]));
-         return *(reinterpret_cast<ValueType*>(&v));))
-    KOKKOS_IF_ON_HOST((return m_ptr[i];))
+    return m_ptr[i];
 #endif
   }
 
@@ -201,7 +201,7 @@ namespace Impl {
  */
 template <class Traits>
 class ViewDataHandle<
-    Traits, std::enable_if_t<(
+    Traits, typename std::enable_if<(
                 // Is Cuda memory space
                 (std::is_same<typename Traits::memory_space,
                               Kokkos::CudaSpace>::value ||
@@ -215,18 +215,19 @@ class ViewDataHandle<
                  sizeof(typename Traits::const_value_type) == 8 ||
                  sizeof(typename Traits::const_value_type) == 16) &&
                 // Random access trait
-                (Traits::memory_traits::is_random_access != 0))>> {
+                (Traits::memory_traits::is_random_access != 0))>::type> {
  public:
   using track_type = Kokkos::Impl::SharedAllocationTracker;
 
   using value_type  = typename Traits::const_value_type;
   using return_type = typename Traits::const_value_type;  // NOT a reference
 
-  using alias_type = std::conditional_t<
+  using alias_type = typename std::conditional<
       (sizeof(value_type) == 4), int,
-      std::conditional_t<
+      typename std::conditional<
           (sizeof(value_type) == 8), ::int2,
-          std::conditional_t<(sizeof(value_type) == 16), ::int4, void>>>;
+          typename std::conditional<(sizeof(value_type) == 16), ::int4,
+                                    void>::type>::type>::type;
 
 #if defined(KOKKOS_ENABLE_CUDA_LDG_INTRINSIC)
   using handle_type = Kokkos::Impl::CudaLDGFetch<value_type, alias_type>;

@@ -221,7 +221,6 @@ option(CMAKE_VERBOSE_MAKEFILE "Generate verbose Makefiles" OFF)
 
 set(STANDARD_PACKAGES
   ADIOS
-  AMOEBA
   ASPHERE
   ATC
   AWPMD
@@ -230,7 +229,7 @@ set(STANDARD_PACKAGES
   BPM
   BROWNIAN
   CG-DNA
-  CG-SPICA
+  CG-SDK
   CLASS2
   COLLOID
   COLVARS
@@ -257,7 +256,7 @@ set(STANDARD_PACKAGES
   KIM
   KSPACE
   LATBOLTZ
-  LEPTON
+  LATTE
   MACHDYN
   MANIFOLD
   MANYBODY
@@ -273,7 +272,6 @@ set(STANDARD_PACKAGES
   ML-QUIP
   ML-RANN
   ML-SNAP
-  ML-POD
   MOFFF
   MOLECULE
   MOLFILE
@@ -396,7 +394,6 @@ pkg_depends(MPIIO MPI)
 pkg_depends(ATC MANYBODY)
 pkg_depends(LATBOLTZ MPI)
 pkg_depends(SCAFACOS MPI)
-pkg_depends(AMOEBA KSPACE)
 pkg_depends(DIELECTRIC KSPACE)
 pkg_depends(DIELECTRIC EXTRA-PAIR)
 pkg_depends(CG-DNA MOLECULE)
@@ -440,19 +437,21 @@ if(BUILD_OMP)
   target_link_libraries(lmp PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-if(PKG_MSCG OR PKG_ATC OR PKG_AWPMD OR PKG_ML-QUIP OR PKG_ML-POD OR PKG_ELECTRODE)
+if(PKG_MSCG OR PKG_ATC OR PKG_AWPMD OR PKG_ML-QUIP OR PKG_LATTE OR PKG_ELECTRODE)
   enable_language(C)
-  if (NOT USE_INTERNAL_LINALG)
-    find_package(LAPACK)
-    find_package(BLAS)
-  endif()
-  if(NOT LAPACK_FOUND OR NOT BLAS_FOUND OR USE_INTERNAL_LINALG)
-    file(GLOB LINALG_SOURCES ${CONFIGURE_DEPENDS} ${LAMMPS_LIB_SOURCE_DIR}/linalg/[^.]*.cpp)
+  find_package(LAPACK)
+  find_package(BLAS)
+  if(NOT LAPACK_FOUND OR NOT BLAS_FOUND)
+    include(CheckGeneratorSupport)
+    if(NOT CMAKE_GENERATOR_SUPPORT_FORTRAN)
+      status(FATAL_ERROR "Cannot build internal linear algebra library as CMake build tool lacks Fortran support")
+    endif()
+    enable_language(Fortran)
+    file(GLOB LINALG_SOURCES ${CONFIGURE_DEPENDS} ${LAMMPS_LIB_SOURCE_DIR}/linalg/[^.]*.[fF])
     add_library(linalg STATIC ${LINALG_SOURCES})
     set_target_properties(linalg PROPERTIES OUTPUT_NAME lammps_linalg${LAMMPS_MACHINE})
     set(BLAS_LIBRARIES "$<TARGET_FILE:linalg>")
     set(LAPACK_LIBRARIES "$<TARGET_FILE:linalg>")
-    target_link_libraries(lammps PRIVATE linalg)
   else()
     list(APPEND LAPACK_LIBRARIES ${BLAS_LIBRARIES})
   endif()
@@ -520,7 +519,7 @@ else()
 endif()
 
 foreach(PKG_WITH_INCL KSPACE PYTHON ML-IAP VORONOI COLVARS ML-HDNNP MDI MOLFILE NETCDF
-        PLUMED QMMM ML-QUIP SCAFACOS MACHDYN VTK KIM MSCG COMPRESS ML-PACE LEPTON)
+        PLUMED QMMM ML-QUIP SCAFACOS MACHDYN VTK KIM LATTE MSCG COMPRESS ML-PACE)
   if(PKG_${PKG_WITH_INCL})
     include(Packages/${PKG_WITH_INCL})
   endif()
@@ -537,10 +536,7 @@ set(CMAKE_TUNE_FLAGS "${CMAKE_TUNE_DEFAULT}" CACHE STRING "Compiler and machine 
 separate_arguments(CMAKE_TUNE_FLAGS)
 foreach(_FLAG ${CMAKE_TUNE_FLAGS})
   target_compile_options(lammps PRIVATE ${_FLAG})
-  # skip these flags when linking the main executable
-  if(NOT (("${_FLAG}" STREQUAL "-Xcudafe") OR (("${_FLAG}" STREQUAL "--diag_suppress=unrecognized_pragma"))))
-    target_compile_options(lmp PRIVATE ${_FLAG})
-  endif()
+  target_compile_options(lmp PRIVATE ${_FLAG})
 endforeach()
 ########################################################################
 # Basic system tests (standard libraries, headers, functions, types)   #
@@ -568,8 +564,6 @@ RegisterStyles(${LAMMPS_SOURCE_DIR})
 ########################################################
 # Fetch missing external files and archives for packages
 ########################################################
-option(DOWNLOAD_POTENTIALS "Automatically download large potential files" ON)
-mark_as_advanced(DOWNLOAD_POTENTIALS)
 foreach(PKG ${STANDARD_PACKAGES} ${SUFFIX_PACKAGES})
   if(PKG_${PKG})
     FetchPotentials(${LAMMPS_SOURCE_DIR}/${PKG} ${LAMMPS_POTENTIALS_DIR})
@@ -622,11 +616,18 @@ endforeach()
 ##############################################
 # add lib sources of (simple) enabled packages
 ############################################
-foreach(PKG_LIB POEMS ATC AWPMD H5MD)
+foreach(PKG_LIB POEMS ATC AWPMD H5MD MESONT)
   if(PKG_${PKG_LIB})
     string(TOLOWER "${PKG_LIB}" PKG_LIB)
-    file(GLOB_RECURSE ${PKG_LIB}_SOURCES ${CONFIGURE_DEPENDS}
-      ${LAMMPS_LIB_SOURCE_DIR}/${PKG_LIB}/[^.]*.c ${LAMMPS_LIB_SOURCE_DIR}/${PKG_LIB}/[^.]*.cpp)
+    if(PKG_LIB STREQUAL "mesont")
+      enable_language(Fortran)
+      file(GLOB_RECURSE ${PKG_LIB}_SOURCES ${CONFIGURE_DEPENDS}
+        ${LAMMPS_LIB_SOURCE_DIR}/${PKG_LIB}/[^.]*.f90)
+    else()
+      file(GLOB_RECURSE ${PKG_LIB}_SOURCES ${CONFIGURE_DEPENDS}
+        ${LAMMPS_LIB_SOURCE_DIR}/${PKG_LIB}/[^.]*.c
+        ${LAMMPS_LIB_SOURCE_DIR}/${PKG_LIB}/[^.]*.cpp)
+    endif()
     add_library(${PKG_LIB} STATIC ${${PKG_LIB}_SOURCES})
     set_target_properties(${PKG_LIB} PROPERTIES OUTPUT_NAME lammps_${PKG_LIB}${LAMMPS_MACHINE})
     target_link_libraries(lammps PRIVATE ${PKG_LIB})
@@ -640,7 +641,7 @@ foreach(PKG_LIB POEMS ATC AWPMD H5MD)
   endif()
 endforeach()
 
-if(PKG_ELECTRODE OR PKG_ML-POD)
+if(PKG_ELECTRODE)
   target_link_libraries(lammps PRIVATE ${LAPACK_LIBRARIES})
 endif()
 
@@ -669,7 +670,7 @@ endif()
 # packages which selectively include variants based on enabled styles
 # e.g. accelerator packages
 ######################################################################
-foreach(PKG_WITH_INCL CORESHELL DPD-SMOOTH MC MISC PHONON QEQ OPENMP KOKKOS OPT INTEL GPU)
+foreach(PKG_WITH_INCL CORESHELL DPD-SMOOTH PHONON QEQ OPENMP KOKKOS OPT INTEL GPU)
   if(PKG_${PKG_WITH_INCL})
     include(Packages/${PKG_WITH_INCL})
   endif()
@@ -840,8 +841,9 @@ if(BUILD_SHARED_LIBS)
   set(LIBLAMMPS_SHARED_BINARY ${MY_BUILD_DIR}/liblammps${LAMMPS_MACHINE}${CMAKE_SHARED_LIBRARY_SUFFIX})
   if(Python_EXECUTABLE)
     add_custom_target(
-      install-python ${Python_EXECUTABLE} ${LAMMPS_PYTHON_DIR}/install.py -p ${LAMMPS_PYTHON_DIR}/lammps
-      -l ${LIBLAMMPS_SHARED_BINARY} -w ${MY_BUILD_DIR} -v ${LAMMPS_SOURCE_DIR}/version.h
+      install-python ${CMAKE_COMMAND} -E remove_directory build
+      COMMAND ${Python_EXECUTABLE} ${LAMMPS_PYTHON_DIR}/install.py -p ${LAMMPS_PYTHON_DIR}/lammps
+              -l ${LIBLAMMPS_SHARED_BINARY} -w ${MY_BUILD_DIR}
       COMMENT "Installing LAMMPS Python module")
   else()
     add_custom_target(
@@ -852,6 +854,35 @@ else()
   add_custom_target(
     install-python
     ${CMAKE_COMMAND} -E echo "Must build LAMMPS as a shared library to use the Python module")
+endif()
+
+###############################################################################
+# Add LAMMPS python module to "install" target. This is taylored for building
+# LAMMPS for package managers and with different prefix settings.
+# This requires either a shared library or that the PYTHON package is included.
+###############################################################################
+if(BUILD_SHARED_LIBS OR PKG_PYTHON)
+  if(CMAKE_VERSION VERSION_LESS 3.12)
+    # adjust so we find Python 3 versions before Python 2 on old systems with old CMake
+    set(Python_ADDITIONAL_VERSIONS 3.12 3.11 3.10 3.9 3.8 3.7 3.6)
+    find_package(PythonInterp) # Deprecated since version 3.12
+    if(PYTHONINTERP_FOUND)
+      set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
+    endif()
+  else()
+    # backward compatibility
+    if(PYTHON_EXECUTABLE)
+      set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
+    endif()
+    find_package(Python COMPONENTS Interpreter)
+  endif()
+  if(Python_EXECUTABLE)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/lib)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/src)
+    file(COPY ${LAMMPS_SOURCE_DIR}/version.h  DESTINATION ${CMAKE_BINARY_DIR}/python/src)
+    file(COPY ${LAMMPS_PYTHON_DIR}/README ${LAMMPS_PYTHON_DIR}/pyproject.toml ${LAMMPS_PYTHON_DIR}/setup.py ${LAMMPS_PYTHON_DIR}/lammps  DESTINATION ${CMAKE_BINARY_DIR}/python/lib)
+    install(CODE "if(\"\$ENV{DESTDIR}\" STREQUAL \"\")\n execute_process(COMMAND ${Python_EXECUTABLE} -m pip install -v ${CMAKE_BINARY_DIR}/python/lib --prefix=${CMAKE_INSTALL_PREFIX})\n else()\n execute_process(COMMAND ${Python_EXECUTABLE} -m pip install -v ${CMAKE_BINARY_DIR}/python/lib --prefix=${CMAKE_INSTALL_PREFIX} --root=\$ENV{DESTDIR})\n endif()")
+  endif()
 endif()
 
 include(Testing)

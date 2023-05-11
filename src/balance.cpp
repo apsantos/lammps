@@ -26,8 +26,7 @@
 #include "neighbor.h"
 #include "comm.h"
 #include "domain.h"
-#include "fix_store_atom.h"
-#include "force.h"
+#include "fix_store.h"
 #include "imbalance.h"
 #include "imbalance_group.h"
 #include "imbalance_neigh.h"
@@ -37,7 +36,6 @@
 #include "irregular.h"
 #include "memory.h"
 #include "modify.h"
-#include "pair.h"
 #include "rcb.h"
 #include "error.h"
 
@@ -80,26 +78,26 @@ Balance::~Balance()
   memory->destroy(proccost);
   memory->destroy(allproccost);
 
-  delete[] user_xsplit;
-  delete[] user_ysplit;
-  delete[] user_zsplit;
+  delete [] user_xsplit;
+  delete [] user_ysplit;
+  delete [] user_zsplit;
 
   if (shift_allocate) {
-    delete[] bdim;
-    delete[] onecost;
-    delete[] allcost;
-    delete[] sum;
-    delete[] target;
-    delete[] lo;
-    delete[] hi;
-    delete[] losum;
-    delete[] hisum;
+    delete [] bdim;
+    delete [] onecost;
+    delete [] allcost;
+    delete [] sum;
+    delete [] target;
+    delete [] lo;
+    delete [] hi;
+    delete [] losum;
+    delete [] hisum;
   }
 
   delete rcb;
 
   for (int i = 0; i < nimbalance; i++) delete imbalances[i];
-  delete[] imbalances;
+  delete [] imbalances;
 
   // check nfix in case all fixes have already been deleted
 
@@ -145,7 +143,7 @@ void Balance::command(int narg, char **arg)
         if (1 + procgrid[0]-1 > narg)
           error->all(FLERR,"Illegal balance command");
         xflag = USER;
-        delete[] user_xsplit;
+        delete [] user_xsplit;
         user_xsplit = new double[procgrid[0]+1];
         user_xsplit[0] = 0.0;
         iarg++;
@@ -165,7 +163,7 @@ void Balance::command(int narg, char **arg)
         if (1 + procgrid[1]-1 > narg)
           error->all(FLERR,"Illegal balance command");
         yflag = USER;
-        delete[] user_ysplit;
+        delete [] user_ysplit;
         user_ysplit = new double[procgrid[1]+1];
         user_ysplit[0] = 0.0;
         iarg++;
@@ -185,7 +183,7 @@ void Balance::command(int narg, char **arg)
         if (1 + procgrid[2]-1 > narg)
           error->all(FLERR,"Illegal balance command");
         zflag = USER;
-        delete[] user_zsplit;
+        delete [] user_zsplit;
         user_zsplit = new double[procgrid[2]+1];
         user_zsplit[0] = 0.0;
         iarg++;
@@ -247,15 +245,15 @@ void Balance::command(int narg, char **arg)
     }
   }
 
-  if (style == BISECTION && comm->style == Comm::BRICK)
+  if (style == BISECTION && comm->style == 0)
     error->all(FLERR,"Balance rcb cannot be used with comm_style brick");
 
   // process remaining optional args
 
-  options(iarg,narg,arg,1);
+  options(iarg,narg,arg);
   if (wtflag) weight_storage(nullptr);
 
-  // ensure particles are in current box & update box via shrink-wrap
+  // insure particles are in current box & update box via shrink-wrap
   // init entire system since comm->setup is done
   // comm::init needs neighbor::init needs pair::init needs kspace::init, etc
   // must reset atom map after exchange() since it clears it
@@ -344,7 +342,7 @@ void Balance::command(int narg, char **arg)
 
   if (style == BISECTION) {
     comm->layout = Comm::LAYOUT_TILED;
-    bisection();
+    bisection(1);
   }
 
   // reset proc sub-domains
@@ -359,21 +357,14 @@ void Balance::command(int narg, char **arg)
   if (domain->triclinic) domain->x2lamda(atom->nlocal);
   auto irregular = new Irregular(lmp);
   if (wtflag) fixstore->disable = 0;
-  if (style == BISECTION) irregular->migrate_atoms(sortflag,1,rcb->sendproc);
-  else irregular->migrate_atoms(sortflag);
+  if (style == BISECTION) irregular->migrate_atoms(1,1,rcb->sendproc);
+  else irregular->migrate_atoms(1);
   delete irregular;
   if (domain->triclinic) domain->lamda2x(atom->nlocal);
 
   // output of final result
 
   if (outflag) dumpout(update->ntimestep);
-
-  // notify all classes that store distributed grids
-  // so they can adjust to new proc sub-domains
-  // no need to invoke kspace->reset_grid() b/c it does this in its init()
-
-  modify->reset_grid();
-  if (force->pair) force->pair->reset_grid();
 
   // check if any particles were lost
 
@@ -421,10 +412,9 @@ void Balance::command(int narg, char **arg)
 
 /* ----------------------------------------------------------------------
    process optional command args for Balance and FixBalance
-   sortflag_default is different for the 2 classes
 ------------------------------------------------------------------------- */
 
-void Balance::options(int iarg, int narg, char **arg, int sortflag_default)
+void Balance::options(int iarg, int narg, char **arg)
 {
   // count max number of weight settings
 
@@ -436,11 +426,10 @@ void Balance::options(int iarg, int narg, char **arg, int sortflag_default)
 
   wtflag = 0;
   varflag = 0;
-  sortflag = sortflag_default;
+  oldrcb = 0;
   outflag = 0;
   int outarg = 0;
   fp = nullptr;
-  oldrcb = 0;
 
   while (iarg < narg) {
     if (strcmp(arg[iarg],"weight") == 0) {
@@ -473,20 +462,14 @@ void Balance::options(int iarg, int narg, char **arg, int sortflag_default)
       }
       iarg += 2+nopt;
 
-    } else if (strcmp(arg[iarg+1],"sort") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "balance sort", error);
-      sortflag = utils::logical(FLERR,arg[iarg+1],false,lmp);
-      iarg += 2;
+    } else if (strcmp(arg[iarg],"old") == 0) {
+      oldrcb = 1;
+      iarg++;
     } else if (strcmp(arg[iarg],"out") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal (fix) balance command");
       outflag = 1;
       outarg = iarg+1;
       iarg += 2;
-
-    } else if (strcmp(arg[iarg],"old") == 0) {
-      oldrcb = 1;
-      iarg++;
-
     } else error->all(FLERR,"Illegal (fix) balance command");
   }
 
@@ -513,9 +496,8 @@ void Balance::weight_storage(char *prefix)
   if (prefix) cmd = prefix;
   cmd += "IMBALANCE_WEIGHTS";
 
-  fixstore = dynamic_cast<FixStoreAtom *>(modify->get_fix_by_id(cmd));
-  if (!fixstore)
-    fixstore = dynamic_cast<FixStoreAtom *>(modify->add_fix(cmd + " all STORE/ATOM 1 0 0 0"));
+  fixstore = dynamic_cast<FixStore *>(modify->get_fix_by_id(cmd));
+  if (!fixstore) fixstore = dynamic_cast<FixStore *>(modify->add_fix(cmd + " all STORE peratom 0 1"));
 
   // do not carry weights with atoms during normal atom migration
 
@@ -577,10 +559,11 @@ double Balance::imbalance_factor(double &maxcost)
 
 /* ----------------------------------------------------------------------
    perform balancing via RCB class
+   sortflag = flag for sorting order of received messages by proc ID
    return list of procs to send my atoms to
 ------------------------------------------------------------------------- */
 
-int *Balance::bisection()
+int *Balance::bisection(int sortflag)
 {
   if (!rcb) rcb = new RCB(lmp);
 
@@ -648,7 +631,6 @@ int *Balance::bisection()
 
   // invoke RCB
   // then invert() to create list of proc assignments for my atoms
-  // sortflag = flag for sorting order of received messages by proc ID
   // if triclinic, RCB operates on lamda coords
   // NOTE: (3/2017) can remove undocumented "old" option at some point
   //       ditto in rcb.cpp, or make it an option
@@ -1081,8 +1063,8 @@ int Balance::adjust(int n, double *split)
   double fraction;
 
   // reset lo/hi based on current sum and splits
-  // ensure lo is monotonically increasing, ties are OK
-  // ensure hi is monotonically decreasing, ties are OK
+  // insure lo is monotonically increasing, ties are OK
+  // insure hi is monotonically decreasing, ties are OK
   // this effectively uses info from nearby splits
   // to possibly tighten bounds on lo/hi
 

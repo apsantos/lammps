@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
-   https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   https://www.lammps.org
+   LAMMPS Development team: developers@lammps.org, Sandia National Laboratories
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -35,7 +35,7 @@ int main(int narg, char **arg)
   MPI_Init(&narg,&arg);
 
   if (narg != 3) {
-    printf("Syntax: %s P in.lammps\n", arg[0]);
+    printf("Syntax: simpleC P in.lammps\n");
     exit(1);
   }
 
