@@ -92,6 +92,8 @@ class ComputePropertyAtom : public Compute {
 
   void pack_radius(int);
   void pack_diameter(int);
+  void pack_temperature(int);
+  void pack_heatflow(int);
   void pack_omegax(int);
   void pack_omegay(int);
   void pack_omegaz(int);
