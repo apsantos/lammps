@@ -17,6 +17,7 @@
 #include "comm.h"
 #include "force.h"
 #include "memory.h"
+#include "update.h"
 
 using namespace LAMMPS_NS;
 
@@ -45,6 +46,7 @@ ComputeNBondAtom::~ComputeNBondAtom()
 
 void ComputeNBondAtom::compute_peratom()
 {
+  invoked_peratom = update->ntimestep;
   // grow local nbond array if necessary
   // needs to be atom->nmax in length
 
