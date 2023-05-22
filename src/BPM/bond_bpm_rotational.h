@@ -41,7 +41,12 @@ class BondBPMRotational : public BondBPM {
  protected:
   double *Kr, *Ks, *Kt, *Kb, *gnorm, *gslide, *groll, *gtwist;
   double *Fcr, *Fcs, *Tct, *Tcb;
+  double *Kh, *Fch;
   int smooth_flag;
+  int heat_flag;
+
+  double calculate_heat(int, double, double, double, double);
+  double tempbreak(int, double, double);
 
   double elastic_forces(int, int, int, double, double, double, double *, double *, double *,
                         double *, double *, double *);

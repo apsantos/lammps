@@ -23,9 +23,6 @@
 #include "modify.h"
 #include "neighbor.h"
 
-#include <cmath>
-#include <cstring>
-
 #define EPSILON 1e-10
 
 using namespace LAMMPS_NS;
@@ -33,10 +30,11 @@ using namespace LAMMPS_NS;
 /* ---------------------------------------------------------------------- */
 
 BondBPMSpring::BondBPMSpring(LAMMPS *_lmp) :
-    BondBPM(_lmp), k(nullptr), ecrit(nullptr), gamma(nullptr)
+    BondBPM(_lmp), k(nullptr), ecrit(nullptr), gamma(nullptr), kh(nullptr), tcrit(nullptr)
 {
   partial_flag = 1;
   smooth_flag = 1;
+  heat_flag = 0;
 
   single_extra = 1;
   svector = new double[1];
@@ -53,6 +51,10 @@ BondBPMSpring::~BondBPMSpring()
     memory->destroy(k);
     memory->destroy(ecrit);
     memory->destroy(gamma);
+    if (heat_flag) {
+      memory->destroy(kh);
+      memory->destroy(tcrit);
+    }
   }
 }
 
@@ -153,6 +155,13 @@ void BondBPMSpring::compute(int eflag, int vflag)
 
   double **bondstore = fix_bond_history->bondstore;
 
+  double *heatflow, *temperature, dq;
+  dq = 0.0; 
+  if (heat_flag) {
+    heatflow = atom->heatflow;
+    temperature = atom->temperature;
+  }
+
   for (n = 0; n < nbondlist; n++) {
 
     // skip bond if already broken
@@ -189,6 +198,20 @@ void BondBPMSpring::compute(int eflag, int vflag)
       continue;
     }
 
+    if (heat_flag) {
+      double Ti = temperature[i1];
+      double Tj = temperature[i2];
+      dq = kh[type] * r0 * (Tj - Ti) / r / r;
+      
+      double Tmax = Ti;
+      if (Tj > Tmax) Tmax = Tj;
+      if (Tmax > tcrit[type]) {
+        bondlist[n][2] = 0;
+        process_broken(i1, i2);
+        continue;
+      }
+    }
+
     rinv = 1.0 / r;
     fbond = k[type] * (r0 - r);
 
@@ -212,12 +235,14 @@ void BondBPMSpring::compute(int eflag, int vflag)
       f[i1][0] += delx * fbond;
       f[i1][1] += dely * fbond;
       f[i1][2] += delz * fbond;
+      if (heat_flag) heatflow[i1] += dq;
     }
 
     if (newton_bond || i2 < nlocal) {
       f[i2][0] -= delx * fbond;
       f[i2][1] -= dely * fbond;
       f[i2][2] -= delz * fbond;
+      if (heat_flag) heatflow[i2] -= dq;
     }
 
     if (evflag) ev_tally(i1, i2, nlocal, newton_bond, 0.0, fbond, delx, dely, delz);
@@ -234,6 +259,10 @@ void BondBPMSpring::allocate()
   memory->create(k, np1, "bond:k");
   memory->create(ecrit, np1, "bond:ecrit");
   memory->create(gamma, np1, "bond:gamma");
+  if (heat_flag) {
+    memory->create(kh, np1, "bond:kh");
+    memory->create(tcrit, np1, "bond:tcrit");
+  }
 
   memory->create(setflag, np1, "bond:setflag");
   for (int i = 1; i < np1; i++) setflag[i] = 0;
@@ -245,7 +274,9 @@ void BondBPMSpring::allocate()
 
 void BondBPMSpring::coeff(int narg, char **arg)
 {
-  if (narg != 4) error->all(FLERR, "Incorrect args for bond coefficients");
+  int coeffnarg = 4;
+  if (heat_flag) coeffnarg = coeffnarg + 2;
+  if (narg != coeffnarg) error->all(FLERR, "Incorrect args for bond coefficients");
   if (!allocated) allocate();
 
   int ilo, ihi;
@@ -254,12 +285,22 @@ void BondBPMSpring::coeff(int narg, char **arg)
   double k_one = utils::numeric(FLERR, arg[1], false, lmp);
   double ecrit_one = utils::numeric(FLERR, arg[2], false, lmp);
   double gamma_one = utils::numeric(FLERR, arg[3], false, lmp);
+  double kh_one = 0.0;
+  double tcrit_one = 1000.0;
+  if (heat_flag) {
+    kh_one = utils::numeric(FLERR, arg[4], false, lmp);
+    tcrit_one = utils::numeric(FLERR, arg[5], false, lmp);
+  }
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
     k[i] = k_one;
     ecrit[i] = ecrit_one;
     gamma[i] = gamma_one;
+    if (heat_flag) {
+      kh[i] = kh_one;
+      tcrit[i] = tcrit_one;
+    }
     setflag[i] = 1;
     count++;
 
@@ -302,6 +343,10 @@ void BondBPMSpring::settings(int narg, char **arg)
       if (iarg + 1 > narg) error->all(FLERR, "Illegal bond bpm command, missing option for smooth");
       smooth_flag = utils::logical(FLERR, arg[iarg + 1], false, lmp);
       i += 1;
+    } else if (strcmp(arg[iarg], "heat") == 0) {
+      if (iarg + 1 > narg) error->all(FLERR, "Illegal bond bpm command, missing option for heat");
+      heat_flag = utils::logical(FLERR, arg[iarg + 1], false, lmp);
+      i += 1;
     } else {
       error->all(FLERR, "Illegal bond bpm command, invalid argument {}", arg[iarg]);
     }
@@ -320,6 +365,10 @@ void BondBPMSpring::write_restart(FILE *fp)
   fwrite(&k[1], sizeof(double), atom->nbondtypes, fp);
   fwrite(&ecrit[1], sizeof(double), atom->nbondtypes, fp);
   fwrite(&gamma[1], sizeof(double), atom->nbondtypes, fp);
+  if (heat_flag) {
+    fwrite(&kh[1], sizeof(double), atom->nbondtypes, fp);
+    fwrite(&tcrit[1], sizeof(double), atom->nbondtypes, fp);
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -336,10 +385,18 @@ void BondBPMSpring::read_restart(FILE *fp)
     utils::sfread(FLERR, &k[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
     utils::sfread(FLERR, &ecrit[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
     utils::sfread(FLERR, &gamma[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
+    if (heat_flag) {
+      utils::sfread(FLERR, &kh[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
+      utils::sfread(FLERR, &tcrit[1], sizeof(double), atom->nbondtypes, fp, nullptr, error);
+    }
   }
   MPI_Bcast(&k[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
   MPI_Bcast(&ecrit[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
   MPI_Bcast(&gamma[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
+  if (heat_flag) {
+    MPI_Bcast(&kh[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
+    MPI_Bcast(&tcrit[1], atom->nbondtypes, MPI_DOUBLE, 0, world);
+  }
 
   for (int i = 1; i <= atom->nbondtypes; i++) setflag[i] = 1;
 }
@@ -351,6 +408,7 @@ void BondBPMSpring::read_restart(FILE *fp)
 void BondBPMSpring::write_restart_settings(FILE *fp)
 {
   fwrite(&smooth_flag, sizeof(int), 1, fp);
+  fwrite(&heat_flag, sizeof(int), 1, fp);
 }
 
 /* ----------------------------------------------------------------------
@@ -361,6 +419,10 @@ void BondBPMSpring::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) utils::sfread(FLERR, &smooth_flag, sizeof(int), 1, fp, nullptr, error);
   MPI_Bcast(&smooth_flag, 1, MPI_INT, 0, world);
+  if (heat_flag) {
+    if (comm->me == 0) utils::sfread(FLERR, &heat_flag, sizeof(int), 1, fp, nullptr, error);
+    MPI_Bcast(&heat_flag, 1, MPI_INT, 0, world);
+  }
 }
 
 /* ---------------------------------------------------------------------- */
