@@ -32,6 +32,7 @@ static constexpr double EPSILON = 1e-10;
 
 using namespace LAMMPS_NS;
 using MathConst::MY_SQRT2;
+using MathConst::MY_PI;
 /* ---------------------------------------------------------------------- */
 
 static double acos_limit(double c)
@@ -551,7 +552,8 @@ void BondBPMRotational::compute(int eflag, int vflag)
     if (heat_flag) {
       double Ti = temperature[i1];
       double Tj = temperature[i2];
-      double bondarea = MY_PI * atom->radius**2.0;
+      double bondarea;
+      bondarea = MY_PI * atom->radius[i1] * atom->radius[i2];
       dq = calculate_heat(type, Ti, Tj, r_mag, bondarea);
 
       double hbreaking; 
@@ -599,7 +601,7 @@ void BondBPMRotational::compute(int eflag, int vflag)
       torque[i2][1] += torque1on2[1] * smooth;
       torque[i2][2] += torque1on2[2] * smooth;
 
-      if (heat_flag) heatflow[i2] += dq;
+      if (heat_flag) heatflow[i2] -= dq;
     }
 
     if (evflag)
